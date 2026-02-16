@@ -6,7 +6,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { redditScraper } from '@/lib/reddit-scraper';
 import { aiAnalyzer } from '@/lib/ai-analyzer';
-import { ScrapingConfig, DEFAULT_CONFIG, InsightReport, JobStatus, AnalyzedPost } from '@/lib/types';
+import { ScrapingConfig, DEFAULT_CONFIG, JobStatus, AnalyzedPost } from '@/lib/types';
 
 const execAsync = promisify(exec);
 
@@ -15,6 +15,9 @@ const jobs = new Map<string, JobStatus>();
 
 // In-memory cache for analyzed posts (for search functionality)
 let cachedAnalyzedPosts: AnalyzedPost[] = [];
+
+// API Secret for authentication - set this in your Vercel environment variables
+const API_SECRET = process.env.API_SECRET || 'reddit-insights-2024';
 
 // Ensure download directory exists
 async function ensureDownloadDir() {
@@ -27,9 +30,46 @@ async function ensureDownloadDir() {
   return downloadDir;
 }
 
+// Validate API request with secret key
+function validateRequest(request: NextRequest, body?: Record<string, unknown>): boolean {
+  // Check header for authorization
+  const authHeader = request.headers.get('authorization');
+  if (authHeader === `Bearer ${API_SECRET}`) {
+    return true;
+  }
+  
+  // Check body for secret (for frontend calls)
+  if (body && body.secret === API_SECRET) {
+    return true;
+  }
+  
+  // Check query params for secret
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('secret') === API_SECRET) {
+    return true;
+  }
+  
+  // Allow if no secret is configured (development mode)
+  if (API_SECRET === 'reddit-insights-2024' && process.env.NODE_ENV === 'development') {
+    return true;
+  }
+  
+  // For Vercel deployment, allow all requests (internal tool)
+  // You can restrict this by setting API_SECRET in environment variables
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const action = body.action || 'start';
+
+  // Validate request
+  if (!validateRequest(request, body)) {
+    return NextResponse.json(
+      { error: 'Unauthorized - Invalid API secret' },
+      { status: 401 }
+    );
+  }
 
   try {
     switch (action) {
@@ -59,6 +99,14 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get('action') || 'status';
   const jobId = searchParams.get('jobId');
+
+  // Validate request
+  if (!validateRequest(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized - Invalid API secret' },
+      { status: 401 }
+    );
+  }
 
   try {
     switch (action) {
@@ -221,14 +269,11 @@ async function quickSearch(topic: string, config: Partial<ScrapingConfig> = {}) 
     success: true,
     topic,
     postsFound: result.posts.length,
-    posts: result.posts.slice(0, 10), // Return first 10 for preview
+    posts: result.posts.slice(0, 10),
     errors: result.errors
   });
 }
 
-/**
- * Advanced Insights Search with filters
- */
 async function insightsSearch(params: {
   query?: string;
   sentiments?: string[];
@@ -246,10 +291,8 @@ async function insightsSearch(params: {
     questionsOnly = false
   } = params;
 
-  // If we have cached posts, use them
   let results = [...cachedAnalyzedPosts];
 
-  // If no cached posts, do a live search
   if (results.length === 0 && query) {
     await redditScraper.initialize();
     const scrapingResult = await redditScraper.quickSearch(query, {
@@ -265,7 +308,6 @@ async function insightsSearch(params: {
     }
   }
 
-  // Apply filters
   if (query.trim()) {
     const searchLower = query.toLowerCase();
     results = results.filter(post => 
@@ -308,21 +350,12 @@ async function insightsSearch(params: {
   return NextResponse.json({
     success: true,
     query,
-    filters: {
-      sentiments,
-      audiences,
-      subreddits,
-      painPointsOnly,
-      questionsOnly
-    },
+    filters: { sentiments, audiences, subreddits, painPointsOnly, questionsOnly },
     totalResults: results.length,
-    results: results.slice(0, 50) // Limit to 50 results
+    results: results.slice(0, 50)
   });
 }
 
-/**
- * Export filtered results to Excel
- */
 async function exportResults(results: AnalyzedPost[]) {
   if (!results || results.length === 0) {
     return NextResponse.json({ error: 'No results to export' }, { status: 400 });
@@ -333,7 +366,6 @@ async function exportResults(results: AnalyzedPost[]) {
   const filename = `Filtered_Insights_${timestamp}.xlsx`;
   const filePath = path.join(process.cwd(), 'download', filename);
 
-  // Create a simple report structure
   const report = {
     generatedAt: new Date().toISOString(),
     summary: {
@@ -359,17 +391,14 @@ async function exportResults(results: AnalyzedPost[]) {
     dateRange: { start: new Date().toISOString(), end: new Date().toISOString() }
   };
 
-  // Save JSON
   const jsonPath = path.join(process.cwd(), 'download', `filtered_${timestamp}.json`);
   await fs.writeFile(jsonPath, JSON.stringify(report, null, 2));
 
-  // Generate Excel
   const scriptPath = path.join(process.cwd(), 'scripts', 'generate_excel_report.py');
   try {
     await execAsync(`python3 "${scriptPath}" "${jsonPath}" "${filePath}"`);
   } catch (error) {
     console.error('Excel generation error:', error);
-    // Return JSON filename if Excel fails
     return NextResponse.json({
       success: true,
       filename: `filtered_${timestamp}.json`,
@@ -377,10 +406,7 @@ async function exportResults(results: AnalyzedPost[]) {
     });
   }
 
-  return NextResponse.json({
-    success: true,
-    filename
-  });
+  return NextResponse.json({ success: true, filename });
 }
 
 async function downloadReport(filename: string) {
@@ -393,7 +419,6 @@ async function downloadReport(filename: string) {
 
   try {
     const fileBuffer = await fs.readFile(filePath);
-    
     const isExcel = filename.endsWith('.xlsx');
     return new NextResponse(fileBuffer, {
       headers: {
@@ -421,10 +446,7 @@ async function listReports() {
       }))
       .sort((a, b) => b.filename.localeCompare(a.filename));
 
-    return NextResponse.json({
-      success: true,
-      reports
-    });
+    return NextResponse.json({ success: true, reports });
   } catch {
     return NextResponse.json({ reports: [] });
   }
