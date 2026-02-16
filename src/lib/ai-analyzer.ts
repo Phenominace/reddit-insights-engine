@@ -1,6 +1,9 @@
-// Reddit Insights Engine - AI Analysis Service
-import ZAI from 'z-ai-web-dev-sdk';
+// Reddit Insights Engine - AI Analysis Service (Groq Compatible)
 import { RedditPost, AnalyzedPost, ContentOpportunity, InsightReport, ScrapingConfig, DEFAULT_CONFIG } from './types';
+
+// Groq API configuration
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile'; // Fast and capable model
 
 interface LLMAnalysisResult {
   painPoints: string[];
@@ -12,24 +15,47 @@ interface LLMAnalysisResult {
   targetAudience: string[];
 }
 
-export class AIAnalyzer {
-  private zai: Awaited<ReturnType<typeof ZAI.create>> | null = null;
+async function callGroqAPI(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('GROQ_API_KEY environment variable is not set. Please add it in your Vercel dashboard.');
+  }
+  
+  const response = await fetch(GROQ_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 1000
+    })
+  });
 
-  async initialize(): Promise<void> {
-    this.zai = await ZAI.create();
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Groq API error: ${response.status} - ${errorText}`);
   }
 
+  const data = await response.json();
+  return data.choices[0]?.message?.content || '';
+}
+
+export class AIAnalyzer {
   /**
    * Analyze a single Reddit post for insights
    */
   async analyzePost(post: RedditPost): Promise<LLMAnalysisResult> {
-    if (!this.zai) {
-      await this.initialize();
-    }
-
     const systemPrompt = `You are an expert content strategist and marketing analyst. Your task is to analyze Reddit posts to extract actionable insights for content creation targeting professionals, service-based founders, and entrepreneurs.
 
-Analyze the post and return a JSON object with the following structure:
+Analyze the post and return ONLY a valid JSON object with the following structure (no markdown, no code blocks, just pure JSON):
 {
   "painPoints": ["array of specific pain points, challenges, or struggles mentioned"],
   "questions": ["array of questions being asked or implied"],
@@ -49,20 +75,12 @@ Focus on:
     const content = `
 Title: ${post.title}
 Subreddit: ${post.subreddit}
-Content: ${post.selftext.substring(0, 2000)}
+Content: ${post.selftext.substring(0, 1500)}
 URL: ${post.url}
     `.trim();
 
     try {
-      const completion = await this.zai!.chat.completions.create({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Analyze this Reddit post and return ONLY a valid JSON object:\n\n${content}` }
-        ],
-        temperature: 0.3
-      });
-
-      const responseText = completion.choices[0]?.message?.content || '{}';
+      const responseText = await callGroqAPI(systemPrompt, `Analyze this Reddit post and return ONLY valid JSON:\n\n${content}`);
       
       // Parse JSON from response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -83,7 +101,7 @@ URL: ${post.url}
   async analyzePosts(posts: RedditPost[]): Promise<AnalyzedPost[]> {
     const analyzed: AnalyzedPost[] = [];
     
-    console.log(`\nAnalyzing ${posts.length} posts...`);
+    console.log(`\nAnalyzing ${posts.length} posts with Groq AI...`);
 
     for (let i = 0; i < posts.length; i++) {
       const post = posts[i];
@@ -105,11 +123,10 @@ URL: ${post.url}
 
         analyzed.push(analyzedPost);
 
-        // Rate limiting
-        await this.delay(300);
+        // Rate limiting for Groq API
+        await this.delay(500);
       } catch (error) {
         console.error(`Failed to analyze post ${post.id}:`, error);
-        // Add with default values
         analyzed.push({
           ...post,
           ...this.getDefaultAnalysis()
@@ -124,11 +141,6 @@ URL: ${post.url}
    * Generate content opportunities from analyzed posts
    */
   async generateContentOpportunities(analyzedPosts: AnalyzedPost[]): Promise<ContentOpportunity[]> {
-    if (!this.zai) {
-      await this.initialize();
-    }
-
-    // Aggregate pain points and questions
     const allPainPoints = analyzedPosts.flatMap(p => p.painPoints);
     const allQuestions = analyzedPosts.flatMap(p => p.questions);
 
@@ -140,7 +152,7 @@ ${allPainPoints.slice(0, 30).map((p, i) => `${i + 1}. ${p}`).join('\n')}
 Questions Asked:
 ${allQuestions.slice(0, 20).map((q, i) => `${i + 1}. ${q}`).join('\n')}
 
-Return a JSON array of content opportunities with this structure:
+Return ONLY a valid JSON array (no markdown, no code blocks) with this structure:
 [
   {
     "title": "Compelling content title",
@@ -155,18 +167,11 @@ Return a JSON array of content opportunities with this structure:
 Focus on content that would attract professionals, service-based founders, and entrepreneurs.`;
 
     try {
-      const completion = await this.zai!.chat.completions.create({
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are a content strategy expert. Return only valid JSON arrays.' 
-          },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7
-      });
-
-      const responseText = completion.choices[0]?.message?.content || '[]';
+      const responseText = await callGroqAPI(
+        'You are a content strategy expert. Return only valid JSON arrays with no markdown formatting.',
+        prompt
+      );
+      
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       
       if (jsonMatch) {
@@ -176,13 +181,7 @@ Focus on content that would attract professionals, service-based founders, and e
           id: `opp-${Date.now()}-${index}`,
           title: opp.title,
           description: opp.description,
-          sourcePosts: analyzedPosts
-            .filter(p => 
-              p.painPoints.some(pp => opp.title.toLowerCase().includes(pp.toLowerCase().substring(0, 20))) ||
-              p.questions.some(q => opp.title.toLowerCase().includes(q.toLowerCase().substring(0, 20)))
-            )
-            .map(p => p.id)
-            .slice(0, 5),
+          sourcePosts: [],
           category: opp.category,
           priority: opp.priority,
           suggestedContentType: opp.suggestedContentType,
@@ -203,7 +202,7 @@ Focus on content that would attract professionals, service-based founders, and e
     posts: RedditPost[],
     config: ScrapingConfig = DEFAULT_CONFIG
   ): Promise<InsightReport> {
-    console.log('\n=== Generating Insight Report ===\n');
+    console.log('\n=== Generating Insight Report with Groq AI ===\n');
 
     // Analyze all posts
     const analyzedPosts = await this.analyzePosts(posts);

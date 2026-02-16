@@ -1,5 +1,4 @@
-// Reddit Insights Engine - Data Collection Service
-import ZAI from 'z-ai-web-dev-sdk';
+// Reddit Insights Engine - Data Collection Service (Groq Compatible)
 import { RedditPost, ScrapingConfig, ScrapingResult, DEFAULT_CONFIG } from './types';
 
 interface SearchResult {
@@ -12,14 +11,8 @@ interface SearchResult {
 }
 
 export class RedditScraper {
-  private zai: Awaited<ReturnType<typeof ZAI.create>> | null = null;
-
-  async initialize(): Promise<void> {
-    this.zai = await ZAI.create();
-  }
-
   /**
-   * Search Reddit for posts matching topics and keywords
+   * Search using DuckDuckGo Instant Answer API (free, no API key needed)
    */
   async searchReddit(
     subreddit: string,
@@ -27,28 +20,53 @@ export class RedditScraper {
     keywords: string[],
     maxResults: number = 25
   ): Promise<SearchResult[]> {
-    if (!this.zai) {
-      await this.initialize();
-    }
-
-    // Build search query targeting Reddit
-    const keywordQuery = keywords.slice(0, 3).join(' OR ');
-    const query = `site:reddit.com/${subreddit} ${topic} (${keywordQuery})`;
-
+    const query = `site:reddit.com/${subreddit} ${topic}`;
+    
     try {
-      const results = await this.zai!.functions.invoke('web_search', {
-        query: query,
-        num: maxResults
+      // Use DuckDuckGo HTML search (free, no API key required)
+      const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+      
+      const response = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       });
-
-      // Filter to only include Reddit URLs
-      const redditResults = results.filter((r: SearchResult) => 
-        r.url.includes('reddit.com') && 
-        !r.url.includes('reddit.com/user/') &&
-        !r.url.includes('reddit.com/search')
-      );
-
-      return redditResults;
+      
+      const html = await response.text();
+      
+      // Parse results from HTML
+      const results: SearchResult[] = [];
+      const linkRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g;
+      const snippetRegex = /<a[^>]*class="result__snippet"[^>]*>([^<]*)<\/a>/g;
+      
+      let match;
+      let index = 0;
+      
+      while ((match = linkRegex.exec(html)) !== null && results.length < maxResults) {
+        let url = match[1];
+        const title = match[2].trim();
+        
+        // DuckDuckGo uses redirect URLs, extract the actual URL
+        const urlMatch = url.match(/uddg=([^&]+)/);
+        if (urlMatch) {
+          url = decodeURIComponent(urlMatch[1]);
+        }
+        
+        // Only include Reddit URLs
+        if (url.includes('reddit.com') && !url.includes('reddit.com/user/')) {
+          results.push({
+            url,
+            name: title,
+            snippet: '',
+            host_name: 'reddit.com',
+            rank: index + 1,
+            date: new Date().toISOString()
+          });
+          index++;
+        }
+      }
+      
+      return results;
     } catch (error) {
       console.error(`Search failed for ${subreddit} - ${topic}:`, error);
       return [];
@@ -56,42 +74,12 @@ export class RedditScraper {
   }
 
   /**
-   * Read and extract content from a Reddit post URL
-   */
-  async readRedditPost(url: string): Promise<{ title: string; content: string; publishedTime: string } | null> {
-    if (!this.zai) {
-      await this.initialize();
-    }
-
-    try {
-      const result = await this.zai!.functions.invoke('page_reader', {
-        url: url
-      });
-
-      if (result.code !== 200 || !result.data) {
-        return null;
-      }
-
-      return {
-        title: result.data.title || '',
-        content: result.data.html || '',
-        publishedTime: result.data.publishedTime || new Date().toISOString()
-      };
-    } catch (error) {
-      console.error(`Failed to read ${url}:`, error);
-      return null;
-    }
-  }
-
-  /**
    * Parse search results into structured Reddit posts
    */
   parseSearchResult(result: SearchResult, subreddit: string): Partial<RedditPost> {
-    // Extract post ID from Reddit URL
     const postIdMatch = result.url.match(/comments\/([a-zA-Z0-9]+)/);
     const postId = postIdMatch ? postIdMatch[1] : `unknown-${Date.now()}`;
 
-    // Extract title from search result name
     const title = result.name
       .replace(/^r\/[^:]+:\s*/i, '')
       .replace(/\s*:\s*r\/[^:]+$/i, '')
@@ -109,7 +97,7 @@ export class RedditScraper {
   }
 
   /**
-   * Run full scraping workflow for configured subreddits and topics
+   * Run full scraping workflow
    */
   async scrape(config: ScrapingConfig = DEFAULT_CONFIG): Promise<ScrapingResult> {
     const allPosts: RedditPost[] = [];
@@ -121,7 +109,7 @@ export class RedditScraper {
     for (const subreddit of config.subreddits) {
       console.log(`\n--- Scraping ${subreddit} ---`);
 
-      for (const topic of config.topics) {
+      for (const topic of config.topics.slice(0, 3)) { // Limit topics for speed
         console.log(`Searching for topic: ${topic}`);
         
         try {
@@ -129,23 +117,16 @@ export class RedditScraper {
             subreddit,
             topic,
             config.keywords,
-            config.maxPostsPerSubreddit
+            5 // Limit results per topic
           );
 
           for (const result of searchResults) {
-            // Skip duplicates
-            if (processedUrls.has(result.url)) {
-              continue;
-            }
+            if (processedUrls.has(result.url)) continue;
             processedUrls.add(result.url);
 
-            // Parse basic info from search result
             const partialPost = this.parseSearchResult(result, subreddit);
 
-            // Read full content for top results
             if (partialPost.id && partialPost.title) {
-              const fullContent = await this.readRedditPost(result.url);
-
               const post: RedditPost = {
                 id: partialPost.id || `post-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 title: partialPost.title || 'Untitled',
@@ -154,8 +135,8 @@ export class RedditScraper {
                 author: '[Unknown]',
                 score: 0,
                 numComments: 0,
-                createdUtc: fullContent?.publishedTime || partialPost.createdUtc || new Date().toISOString(),
-                selftext: fullContent?.content || partialPost.selftext || result.snippet,
+                createdUtc: partialPost.createdUtc || new Date().toISOString(),
+                selftext: partialPost.selftext || result.snippet,
                 permalink: partialPost.permalink || result.url,
                 linkFlairText: null,
                 upvoteRatio: 0
@@ -165,12 +146,10 @@ export class RedditScraper {
               console.log(`  ✓ Collected: "${post.title.substring(0, 50)}..."`);
             }
 
-            // Rate limiting
-            await this.delay(500);
+            await this.delay(200);
           }
 
-          // Delay between topic searches
-          await this.delay(1000);
+          await this.delay(500);
         } catch (error) {
           const errorMsg = `Failed to scrape ${subreddit} for ${topic}: ${error}`;
           errors.push(errorMsg);
@@ -199,18 +178,9 @@ export class RedditScraper {
     const errors: string[] = [];
     const processedUrls = new Set<string>();
 
-    if (!this.zai) {
-      await this.initialize();
-    }
-
     for (const subreddit of config.subreddits) {
       try {
-        const searchResults = await this.searchReddit(
-          subreddit,
-          topic,
-          config.keywords,
-          10
-        );
+        const searchResults = await this.searchReddit(subreddit, topic, [], 5);
 
         for (const result of searchResults) {
           if (processedUrls.has(result.url)) continue;
@@ -236,7 +206,7 @@ export class RedditScraper {
           allPosts.push(post);
         }
 
-        await this.delay(500);
+        await this.delay(200);
       } catch (error) {
         errors.push(`Failed quick search for ${subreddit}: ${error}`);
       }
