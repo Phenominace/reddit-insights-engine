@@ -14,24 +14,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
+  title: "Reddit Insights Engine - Content Strategy Intelligence",
+  description: "AI-powered Reddit analysis for content strategy. Extract pain points, questions, and audience insights from marketing and entrepreneurship communities.",
+  keywords: ["Reddit", "Content Strategy", "Marketing", "Entrepreneurship", "AI Analysis", "Lead Generation", "Audience Insights"],
+  authors: [{ name: "Reddit Insights Engine" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "Reddit Insights Engine",
+    description: "AI-powered Reddit analysis for content strategy intelligence",
+    url: "https://reddit-insights.ai",
+    siteName: "Reddit Insights Engine",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
+    title: "Reddit Insights Engine",
+    description: "AI-powered Reddit analysis for content strategy intelligence",
   },
 };
 

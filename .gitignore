@@ -49,3 +49,9 @@ prompt
 server.log
 # Skills directory
 /skills/
+# generated reports
+/download/
+
+# logs
+/logs/
+*.log
