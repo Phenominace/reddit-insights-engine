@@ -1,0 +1,5 @@
+{
+  "apiKey": "z-ai-built-in",
+  "baseUrl": "https://api.z.ai",
+  "timeout": 60000
+}
