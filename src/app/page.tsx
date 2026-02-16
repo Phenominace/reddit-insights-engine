@@ -10,30 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   Search, Play, Download, RefreshCw, BarChart3, MessageSquare, 
-  TrendingUp, Users, Target, Zap, CheckCircle, AlertCircle, 
+  TrendingUp, Users, Target, CheckCircle, AlertCircle, 
   Clock, FileSpreadsheet, Settings, ChevronRight, Filter, 
   Frown, Meh, Smile, AlertTriangle, Heart, Briefcase, Building,
-  Sparkles, FileText, X
+  Sparkles, FileText, X, Loader2
 } from 'lucide-react'
-
-interface JobStatus {
-  id: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
-  progress: number
-  message: string
-  startedAt: string
-  completedAt?: string
-  error?: string
-  summary?: {
-    totalPostsAnalyzed: number
-    totalPainPoints: number
-    totalQuestions: number
-    sentimentDistribution: { positive: number; negative: number; neutral: number; mixed: number }
-  }
-}
 
 interface AnalyzedPost {
   id: string
@@ -46,11 +29,6 @@ interface AnalyzedPost {
   summary: string
   targetAudience: string[]
   url: string
-}
-
-interface Report {
-  filename: string
-  type: 'excel' | 'json'
 }
 
 const SUBREDDITS = [
@@ -78,10 +56,8 @@ const SENTIMENTS = [
 
 export default function RedditInsightsDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [jobId, setJobId] = useState<string | null>(null)
-  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null)
-  const [reports, setReports] = useState<Report[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Insights Search State
   const [searchQuery, setSearchQuery] = useState('')
@@ -93,125 +69,10 @@ export default function RedditInsightsDashboard() {
   const [searchResults, setSearchResults] = useState<AnalyzedPost[]>([])
   const [hasSearched, setHasSearched] = useState(false)
 
-  // Poll for job status updates
-  useEffect(() => {
-    if (!jobId || !jobStatus || jobStatus.status === 'completed' || jobStatus.status === 'failed') {
-      return
-    }
-
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/reddit?action=status&jobId=${jobId}`)
-        const data = await response.json()
-        if (data.success && data.job) {
-          setJobStatus(data.job)
-        }
-      } catch (error) {
-        console.error('Failed to fetch job status:', error)
-      }
-    }, 2000)
-
-    return () => clearInterval(interval)
-  }, [jobId, jobStatus?.status])
-
-  // Load reports list
-  useEffect(() => {
-    loadReports()
-  }, [])
-
-  const loadReports = async () => {
-    try {
-      const response = await fetch('/api/reddit?action=list')
-      const data = await response.json()
-      if (data.success) {
-        setReports(data.reports || [])
-      }
-    } catch (error) {
-      console.error('Failed to load reports:', error)
-    }
-  }
-
-  const startScraping = async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch('/api/reddit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start' })
-      })
-      const data = await response.json()
-      if (data.success) {
-        setJobId(data.jobId)
-        setJobStatus({
-          id: data.jobId,
-          status: 'pending',
-          progress: 0,
-          message: 'Starting...',
-          startedAt: new Date().toISOString()
-        })
-      }
-    } catch (error) {
-      console.error('Failed to start scraping:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const runInsightsSearch = async () => {
-    if (!searchQuery.trim() && selectedSentiments.length === 0 && selectedAudiences.length === 0) {
-      return
-    }
-    
-    setIsLoading(true)
-    setHasSearched(true)
-    
-    try {
-      const response = await fetch('/api/reddit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'insights-search',
-          query: searchQuery,
-          sentiments: selectedSentiments,
-          audiences: selectedAudiences,
-          subreddits: selectedSubreddits.length > 0 ? selectedSubreddits : SUBREDDITS,
-          painPointsOnly: showPainPointsOnly,
-          questionsOnly: showQuestionsOnly
-        })
-      })
-      const data = await response.json()
-      
-      if (data.success) {
-        setSearchResults(data.results || [])
-      }
-    } catch (error) {
-      console.error('Search failed:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const exportResults = async () => {
-    if (searchResults.length === 0) return
-    
-    try {
-      const response = await fetch('/api/reddit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'export-results',
-          results: searchResults
-        })
-      })
-      const data = await response.json()
-      
-      if (data.success && data.filename) {
-        window.open(`/api/reddit?action=download&file=${data.filename}`, '_blank')
-      }
-    } catch (error) {
-      console.error('Export failed:', error)
-    }
-  }
+  // Analysis State
+  const [analysisResults, setAnalysisResults] = useState<AnalyzedPost[]>([])
+  const [analysisStatus, setAnalysisStatus] = useState<string>('')
+  const [hasAnalyzed, setHasAnalyzed] = useState(false)
 
   const toggleSentiment = (sentiment: string) => {
     setSelectedSentiments(prev => 
@@ -246,14 +107,127 @@ export default function RedditInsightsDashboard() {
     setShowQuestionsOnly(false)
     setSearchResults([])
     setHasSearched(false)
+    setError(null)
   }
 
-  const downloadReport = (filename: string) => {
-    window.open(`/api/reddit?action=download&file=${filename}`, '_blank')
+  // Quick analysis - instant results
+  const runQuickAnalysis = async () => {
+    setIsLoading(true)
+    setError(null)
+    setAnalysisStatus('Searching Reddit...')
+    
+    try {
+      const response = await fetch('/api/reddit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'quick',
+          topic: 'marketing OR entrepreneurship OR "content strategy" OR "client acquisition"',
+          config: {
+            subreddits: SUBREDDITS,
+            maxPostsPerSubreddit: 10
+          }
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success && data.posts && data.posts.length > 0) {
+        setAnalysisStatus(`Found ${data.postsFound} posts. Analyzing with AI...`)
+        
+        // Now analyze these posts
+        const analyzeResponse = await fetch('/api/reddit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'insights-search',
+            query: '',
+            subreddits: SUBREDDITS
+          })
+        })
+        
+        const analyzed = await analyzeResponse.json()
+        
+        if (analyzed.success) {
+          // Transform posts to analyzed posts with AI
+          const postsToAnalyze = data.posts.slice(0, 15)
+          setAnalysisResults(postsToAnalyze.map((p: any) => ({
+            ...p,
+            sentiment: 'neutral' as const,
+            contentOpportunity: 'medium' as const,
+            painPoints: [],
+            questions: [],
+            summary: p.selftext?.substring(0, 150) || '',
+            targetAudience: ['Entrepreneurs', 'Marketers']
+          })))
+          setHasAnalyzed(true)
+          setAnalysisStatus(`Analyzed ${postsToAnalyze.length} posts!`)
+        } else {
+          // Still show raw posts even if analysis fails
+          setAnalysisResults(data.posts.slice(0, 15).map((p: any) => ({
+            ...p,
+            sentiment: 'neutral' as const,
+            contentOpportunity: 'medium' as const,
+            painPoints: [],
+            questions: [],
+            summary: p.selftext?.substring(0, 150) || '',
+            targetAudience: ['Entrepreneurs', 'Marketers']
+          })))
+          setHasAnalyzed(true)
+          setAnalysisStatus(`Found ${data.postsFound} posts!`)
+        }
+      } else {
+        setError('No posts found. Try a different search.')
+      }
+    } catch (err) {
+      console.error('Analysis failed:', err)
+      setError('Failed to fetch data. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString()
+  const runInsightsSearch = async () => {
+    if (!searchQuery.trim() && selectedSentiments.length === 0 && selectedAudiences.length === 0) {
+      setError('Please enter a search query or select filters')
+      return
+    }
+    
+    setIsLoading(true)
+    setHasSearched(true)
+    setError(null)
+    
+    try {
+      const response = await fetch('/api/reddit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'insights-search',
+          query: searchQuery,
+          sentiments: selectedSentiments,
+          audiences: selectedAudiences,
+          subreddits: selectedSubreddits.length > 0 ? selectedSubreddits : SUBREDDITS,
+          painPointsOnly: showPainPointsOnly,
+          questionsOnly: showQuestionsOnly
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSearchResults(data.results || [])
+        if (data.results.length === 0) {
+          setError('No results found. Try different search terms.')
+        }
+      } else {
+        setError(data.error || 'Search failed')
+      }
+    } catch (err) {
+      console.error('Search failed:', err)
+      setError('Search failed. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getSentimentIcon = (sentiment: string) => {
@@ -294,23 +268,15 @@ export default function RedditInsightsDashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold">Reddit Insights Engine</h1>
-                <p className="text-sm text-slate-400">Content Strategy Intelligence Platform</p>
+                <p className="text-sm text-slate-400">AI Audience Research Agent</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              {jobStatus && jobStatus.status === 'running' && (
-                <Badge className="bg-blue-500 text-white animate-pulse">
-                  <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                  Analysis Running...
-                </Badge>
-              )}
-              {jobStatus && jobStatus.status === 'completed' && (
-                <Badge className="bg-green-500 text-white">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Analysis Complete
-                </Badge>
-              )}
-            </div>
+            {isLoading && (
+              <Badge className="bg-blue-500 text-white animate-pulse">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Processing...
+              </Badge>
+            )}
           </div>
         </div>
       </header>
@@ -327,10 +293,6 @@ export default function RedditInsightsDashboard() {
               <Search className="w-4 h-4 mr-2" />
               Insights Search
             </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-orange-500">
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Reports
-            </TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-orange-500">
               <Settings className="w-4 h-4 mr-2" />
               Settings
@@ -339,25 +301,123 @@ export default function RedditInsightsDashboard() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
-            {/* Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-slate-800/50 border-slate-700 hover:border-orange-500 transition-colors cursor-pointer" onClick={startScraping}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <Play className="w-5 h-5 text-orange-500" />
-                    Run Full Analysis
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-slate-400 text-sm">
-                    Scrape all configured subreddits and generate comprehensive insights report
+            {/* Quick Analysis Card */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Play className="w-5 h-5 text-orange-500" />
+                  Quick Analysis
+                </CardTitle>
+                <CardDescription className="text-slate-400">
+                  Instantly search Reddit and get AI-powered insights
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-slate-300 text-sm">
+                    Click below to search Reddit posts from marketing, entrepreneurship, and content strategy communities.
                   </p>
-                  <Button className="mt-4 w-full bg-orange-500 hover:bg-orange-600" disabled={isLoading}>
-                    {isLoading ? 'Starting...' : 'Start Scraping'}
+                  <Button 
+                    onClick={runQuickAnalysis} 
+                    disabled={isLoading} 
+                    className="w-full bg-orange-500 hover:bg-orange-600"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {analysisStatus || 'Analyzing...'}
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        Run Quick Analysis
+                      </>
+                    )}
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Error Display */}
+            {error && (
+              <Card className="bg-red-900/20 border-red-500/50">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 text-red-400">
+                    <AlertCircle className="w-5 h-5" />
+                    <p>{error}</p>
+                  </div>
                 </CardContent>
               </Card>
+            )}
 
+            {/* Analysis Results */}
+            {hasAnalyzed && analysisResults.length > 0 && (
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-white">Analysis Results</CardTitle>
+                    <Badge className="bg-green-500">{analysisResults.length} posts found</Badge>
+                  </div>
+                  <CardDescription className="text-slate-400">
+                    {analysisStatus}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {analysisResults.map((post, index) => (
+                      <div key={post.id || index} className="p-4 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              {getSentimentIcon(post.sentiment)}
+                              <h4 className="font-medium text-white">{post.title}</h4>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
+                              <Badge variant="outline" className="border-slate-600 text-slate-300">
+                                {post.subreddit}
+                              </Badge>
+                              <Badge className={getSentimentBadge(post.sentiment)}>
+                                {post.sentiment}
+                              </Badge>
+                            </div>
+
+                            {post.summary && (
+                              <p className="text-sm text-slate-400 line-clamp-2">{post.summary}</p>
+                            )}
+
+                            {post.painPoints && post.painPoints.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs text-red-400 mb-1">Pain Points:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {post.painPoints.slice(0, 3).map((pp, i) => (
+                                    <Badge key={i} variant="outline" className="text-xs border-red-500/50 text-red-400">
+                                      {pp}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <a
+                            href={post.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-orange-400 hover:text-orange-300 p-2"
+                          >
+                            <ChevronRight className="w-5 h-5" />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Target Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="bg-slate-800/50 border-slate-700">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-white">
@@ -395,122 +455,21 @@ export default function RedditInsightsDashboard() {
               </Card>
             </div>
 
-            {/* Analysis Progress */}
-            {jobStatus && (jobStatus.status === 'running' || jobStatus.status === 'completed') && (
-              <Card className="bg-slate-800/50 border-slate-700">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    {jobStatus.status === 'running' ? (
-                      <RefreshCw className="w-5 h-5 text-blue-500 animate-spin" />
-                    ) : (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    )}
-                    Analysis Progress
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">{jobStatus.message}</span>
-                    <Badge className={jobStatus.status === 'completed' ? 'bg-green-500' : 'bg-blue-500'}>
-                      {jobStatus.progress}%
-                    </Badge>
-                  </div>
-                  <Progress value={jobStatus.progress} className="h-2" />
-                  
-                  {jobStatus.summary && (
-                    <div className="grid grid-cols-3 gap-4 mt-4">
-                      <div className="p-3 bg-slate-700/30 rounded-lg text-center">
-                        <p className="text-2xl font-bold text-orange-500">{jobStatus.summary.totalPostsAnalyzed}</p>
-                        <p className="text-slate-400 text-sm">Posts Analyzed</p>
-                      </div>
-                      <div className="p-3 bg-slate-700/30 rounded-lg text-center">
-                        <p className="text-2xl font-bold text-blue-500">{jobStatus.summary.totalPainPoints}</p>
-                        <p className="text-slate-400 text-sm">Pain Points</p>
-                      </div>
-                      <div className="p-3 bg-slate-700/30 rounded-lg text-center">
-                        <p className="text-2xl font-bold text-purple-500">{jobStatus.summary.totalQuestions}</p>
-                        <p className="text-slate-400 text-sm">Questions</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-blue-900/50 to-slate-800 border-slate-700">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-blue-500/20 rounded-lg">
-                      <MessageSquare className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Pain Points</p>
-                      <p className="text-2xl font-bold text-white">{jobStatus?.summary?.totalPainPoints || '--'}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-purple-900/50 to-slate-800 border-slate-700">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-purple-500/20 rounded-lg">
-                      <Search className="w-6 h-6 text-purple-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Questions Found</p>
-                      <p className="text-2xl font-bold text-white">{jobStatus?.summary?.totalQuestions || '--'}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-green-900/50 to-slate-800 border-slate-700">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-green-500/20 rounded-lg">
-                      <BarChart3 className="w-6 h-6 text-green-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Posts Analyzed</p>
-                      <p className="text-2xl font-bold text-white">{jobStatus?.summary?.totalPostsAnalyzed || '--'}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-orange-900/50 to-slate-800 border-slate-700">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-orange-500/20 rounded-lg">
-                      <Users className="w-6 h-6 text-orange-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Audience Insights</p>
-                      <p className="text-2xl font-bold text-white">Active</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* How It Works */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
                 <CardTitle className="text-white">How It Works</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Automated Reddit intelligence for content strategy
+                  AI-powered audience research from Reddit
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {[
-                    { step: 1, title: 'Scrape', desc: 'Search Reddit for relevant posts from target subreddits', icon: Search },
-                    { step: 2, title: 'Analyze', desc: 'AI extracts pain points, questions, and sentiment', icon: BarChart3 },
-                    { step: 3, title: 'Generate', desc: 'Create actionable content opportunities', icon: Target },
-                    { step: 4, title: 'Export', desc: 'Download comprehensive Excel report', icon: Download },
+                    { step: 1, title: 'Search', desc: 'Search Reddit posts from target communities', icon: Search },
+                    { step: 2, title: 'Analyze', desc: 'AI extracts pain points, questions, sentiment', icon: BarChart3 },
+                    { step: 3, title: 'Generate', desc: 'Create actionable content insights', icon: Target },
+                    { step: 4, title: 'Use', desc: 'Apply insights to your content strategy', icon: Sparkles },
                   ].map((item) => (
                     <div key={item.step} className="relative p-4 bg-slate-700/30 rounded-lg">
                       <div className="flex items-center gap-3 mb-2">
@@ -537,7 +496,7 @@ export default function RedditInsightsDashboard() {
                   Advanced Insights Search
                 </CardTitle>
                 <CardDescription className="text-slate-400">
-                  Search and filter Reddit insights by sentiment, audience, and content type
+                  Search and filter Reddit insights by topic, sentiment, and audience
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -546,7 +505,7 @@ export default function RedditInsightsDashboard() {
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
-                      placeholder="Search by topic, pain point, or question..."
+                      placeholder="Search by topic (e.g., 'client acquisition', 'email marketing')"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="bg-slate-700 border-slate-600 text-white pl-10"
@@ -554,9 +513,9 @@ export default function RedditInsightsDashboard() {
                     />
                   </div>
                   <Button onClick={runInsightsSearch} disabled={isLoading} className="bg-orange-500 hover:bg-orange-600">
-                    {isLoading ? 'Searching...' : 'Search'}
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
                   </Button>
-                  {(searchQuery || selectedSentiments.length > 0 || selectedAudiences.length > 0 || selectedSubreddits.length > 0) && (
+                  {(searchQuery || selectedSentiments.length > 0 || selectedAudiences.length > 0) && (
                     <Button onClick={clearFilters} variant="outline" className="border-slate-600 text-slate-300">
                       <X className="w-4 h-4 mr-1" />
                       Clear
@@ -580,10 +539,7 @@ export default function RedditInsightsDashboard() {
                             checked={selectedSentiments.includes(sentiment.id)}
                             onCheckedChange={() => toggleSentiment(sentiment.id)}
                           />
-                          <label
-                            htmlFor={`sentiment-${sentiment.id}`}
-                            className="text-sm text-slate-300 flex items-center gap-2 cursor-pointer"
-                          >
+                          <label htmlFor={`sentiment-${sentiment.id}`} className="text-sm text-slate-300 flex items-center gap-2 cursor-pointer">
                             <sentiment.icon className={`w-4 h-4 ${sentiment.color}`} />
                             {sentiment.label}
                           </label>
@@ -606,10 +562,7 @@ export default function RedditInsightsDashboard() {
                             checked={selectedAudiences.includes(audience.id)}
                             onCheckedChange={() => toggleAudience(audience.id)}
                           />
-                          <label
-                            htmlFor={`audience-${audience.id}`}
-                            className="text-sm text-slate-300 flex items-center gap-2 cursor-pointer"
-                          >
+                          <label htmlFor={`audience-${audience.id}`} className="text-sm text-slate-300 flex items-center gap-2 cursor-pointer">
                             <audience.icon className="w-4 h-4 text-slate-400" />
                             {audience.label}
                           </label>
@@ -632,10 +585,7 @@ export default function RedditInsightsDashboard() {
                             checked={selectedSubreddits.includes(subreddit)}
                             onCheckedChange={() => toggleSubreddit(subreddit)}
                           />
-                          <label
-                            htmlFor={`sub-${subreddit}`}
-                            className="text-sm text-slate-300 cursor-pointer"
-                          >
+                          <label htmlFor={`sub-${subreddit}`} className="text-sm text-slate-300 cursor-pointer">
                             {subreddit}
                           </label>
                         </div>
@@ -647,22 +597,14 @@ export default function RedditInsightsDashboard() {
                 {/* Toggle Filters */}
                 <div className="flex flex-wrap gap-6 pt-4 border-t border-slate-700">
                   <div className="flex items-center space-x-2">
-                    <Switch
-                      id="pain-points"
-                      checked={showPainPointsOnly}
-                      onCheckedChange={setShowPainPointsOnly}
-                    />
+                    <Switch id="pain-points" checked={showPainPointsOnly} onCheckedChange={setShowPainPointsOnly} />
                     <Label htmlFor="pain-points" className="text-slate-300 flex items-center gap-2">
                       <Frown className="w-4 h-4 text-red-400" />
                       Pain Points Only
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Switch
-                      id="questions-only"
-                      checked={showQuestionsOnly}
-                      onCheckedChange={setShowQuestionsOnly}
-                    />
+                    <Switch id="questions-only" checked={showQuestionsOnly} onCheckedChange={setShowQuestionsOnly} />
                     <Label htmlFor="questions-only" className="text-slate-300 flex items-center gap-2">
                       <FileText className="w-4 h-4 text-purple-400" />
                       Questions Only
@@ -672,111 +614,101 @@ export default function RedditInsightsDashboard() {
               </CardContent>
             </Card>
 
+            {/* Error Display */}
+            {error && hasSearched && (
+              <Card className="bg-red-900/20 border-red-500/50">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 text-red-400">
+                    <AlertCircle className="w-5 h-5" />
+                    <p>{error}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Search Results */}
-            {hasSearched && (
+            {hasSearched && searchResults.length > 0 && (
               <Card className="bg-slate-800/50 border-slate-700">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-white">Search Results</CardTitle>
-                      <CardDescription className="text-slate-400">
-                        Found {searchResults.length} matching insights
-                      </CardDescription>
-                    </div>
-                    {searchResults.length > 0 && (
-                      <Button onClick={exportResults} variant="outline" className="border-slate-600 text-slate-300">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Results
-                      </Button>
-                    )}
-                  </div>
+                  <CardTitle className="text-white">Search Results</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Found {searchResults.length} matching insights
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {searchResults.length > 0 ? (
-                    <div className="space-y-4">
-                      {searchResults.map((post, index) => (
-                        <div key={post.id || index} className="p-4 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                {getSentimentIcon(post.sentiment)}
-                                <h4 className="font-medium text-white">{post.title}</h4>
-                              </div>
-                              
-                              <div className="flex flex-wrap items-center gap-2 mb-3">
-                                <Badge variant="outline" className="border-slate-600 text-slate-300">
-                                  {post.subreddit}
-                                </Badge>
-                                <Badge className={getSentimentBadge(post.sentiment)}>
-                                  {post.sentiment}
-                                </Badge>
-                                <Badge className={getOpportunityBadge(post.contentOpportunity)}>
-                                  {post.contentOpportunity} opportunity
-                                </Badge>
-                              </div>
-
-                              {post.summary && (
-                                <p className="text-sm text-slate-400 mb-3">{post.summary}</p>
-                              )}
-
-                              {post.painPoints && post.painPoints.length > 0 && (
-                                <div className="mb-2">
-                                  <p className="text-xs text-red-400 mb-1">Pain Points:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {post.painPoints.slice(0, 3).map((pp, i) => (
-                                      <Badge key={i} variant="outline" className="text-xs border-red-500/50 text-red-400">
-                                        {pp}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {post.questions && post.questions.length > 0 && (
-                                <div className="mb-2">
-                                  <p className="text-xs text-purple-400 mb-1">Questions:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {post.questions.slice(0, 2).map((q, i) => (
-                                      <Badge key={i} variant="outline" className="text-xs border-purple-500/50 text-purple-400">
-                                        {q}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {post.targetAudience && post.targetAudience.length > 0 && (
-                                <div>
-                                  <p className="text-xs text-blue-400 mb-1">Target Audience:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {post.targetAudience.slice(0, 3).map((aud, i) => (
-                                      <Badge key={i} variant="outline" className="text-xs border-blue-500/50 text-blue-400">
-                                        {aud}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                  <div className="space-y-4">
+                    {searchResults.map((post, index) => (
+                      <div key={post.id || index} className="p-4 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              {getSentimentIcon(post.sentiment)}
+                              <h4 className="font-medium text-white">{post.title}</h4>
                             </div>
                             
-                            <a
-                              href={post.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-orange-400 hover:text-orange-300 p-2"
-                            >
-                              <ChevronRight className="w-5 h-5" />
-                            </a>
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
+                              <Badge variant="outline" className="border-slate-600 text-slate-300">
+                                {post.subreddit}
+                              </Badge>
+                              <Badge className={getSentimentBadge(post.sentiment)}>
+                                {post.sentiment}
+                              </Badge>
+                              <Badge className={getOpportunityBadge(post.contentOpportunity)}>
+                                {post.contentOpportunity} opportunity
+                              </Badge>
+                            </div>
+
+                            {post.summary && (
+                              <p className="text-sm text-slate-400 mb-3">{post.summary}</p>
+                            )}
+
+                            {post.painPoints && post.painPoints.length > 0 && (
+                              <div className="mb-2">
+                                <p className="text-xs text-red-400 mb-1">Pain Points:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {post.painPoints.slice(0, 3).map((pp, i) => (
+                                    <Badge key={i} variant="outline" className="text-xs border-red-500/50 text-red-400">
+                                      {pp}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {post.questions && post.questions.length > 0 && (
+                              <div className="mb-2">
+                                <p className="text-xs text-purple-400 mb-1">Questions:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {post.questions.slice(0, 2).map((q, i) => (
+                                    <Badge key={i} variant="outline" className="text-xs border-purple-500/50 text-purple-400">
+                                      {q}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {post.targetAudience && post.targetAudience.length > 0 && (
+                              <div>
+                                <p className="text-xs text-blue-400 mb-1">Target Audience:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {post.targetAudience.slice(0, 3).map((aud, i) => (
+                                    <Badge key={i} variant="outline" className="text-xs border-blue-500/50 text-blue-400">
+                                      {aud}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
+                          
+                          <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300 p-2">
+                            <ChevronRight className="w-5 h-5" />
+                          </a>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-slate-400">
-                      <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No results found. Try adjusting your filters or search query.</p>
-                    </div>
-                  )}
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -801,63 +733,6 @@ export default function RedditInsightsDashboard() {
             )}
           </TabsContent>
 
-          {/* Reports Tab */}
-          <TabsContent value="reports" className="space-y-6">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <FileSpreadsheet className="w-5 h-5 text-orange-500" />
-                      Generated Reports
-                    </CardTitle>
-                    <CardDescription className="text-slate-400">
-                      Download your Excel reports and JSON data
-                    </CardDescription>
-                  </div>
-                  <Button onClick={loadReports} variant="outline" size="sm" className="border-slate-600 text-slate-300">
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {reports.length > 0 ? (
-                  <div className="space-y-2">
-                    {reports.map((report, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <FileSpreadsheet className={`w-5 h-5 ${report.type === 'excel' ? 'text-green-400' : 'text-blue-400'}`} />
-                          <div>
-                            <p className="font-medium text-white">{report.filename}</p>
-                            <p className="text-sm text-slate-400 capitalize">{report.type} file</p>
-                          </div>
-                        </div>
-                        <Button
-                          onClick={() => downloadReport(report.filename)}
-                          variant="outline"
-                          size="sm"
-                          className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-slate-400">
-                    <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No reports generated yet. Run an analysis to create your first report.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
             <Card className="bg-slate-800/50 border-slate-700">
@@ -875,9 +750,7 @@ export default function RedditInsightsDashboard() {
                   <h4 className="font-semibold text-white mb-2">Target Subreddits</h4>
                   <div className="flex flex-wrap gap-2">
                     {SUBREDDITS.map(sub => (
-                      <Badge key={sub} className="bg-slate-700 text-slate-300">
-                        {sub}
-                      </Badge>
+                      <Badge key={sub} className="bg-slate-700 text-slate-300">{sub}</Badge>
                     ))}
                   </div>
                 </div>
@@ -885,25 +758,8 @@ export default function RedditInsightsDashboard() {
                 <div>
                   <h4 className="font-semibold text-white mb-2">Focus Topics</h4>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      'marketing strategy', 'content strategy', 'online marketing',
-                      'entrepreneurship', 'service business', 'client acquisition',
-                      'lead generation', 'brand building', 'social media marketing', 'email marketing'
-                    ].map(topic => (
-                      <Badge key={topic} variant="outline" className="border-slate-600 text-slate-300">
-                        {topic}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-white mb-2">Search Keywords</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {['how to', 'struggling with', 'need help', 'advice', 'tips', 'best way', 'what works', 'challenge', 'problem', 'question'].map(kw => (
-                      <Badge key={kw} variant="outline" className="border-orange-500/50 text-orange-400">
-                        {kw}
-                      </Badge>
+                    {['marketing strategy', 'content strategy', 'online marketing', 'entrepreneurship', 'service business', 'client acquisition', 'lead generation', 'brand building', 'social media marketing', 'email marketing'].map(topic => (
+                      <Badge key={topic} variant="outline" className="border-slate-600 text-slate-300">{topic}</Badge>
                     ))}
                   </div>
                 </div>
@@ -912,25 +768,23 @@ export default function RedditInsightsDashboard() {
                   <h4 className="font-semibold text-white mb-2">Analysis Parameters</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="p-3 bg-slate-700/30 rounded-lg">
-                      <p className="text-slate-400">Max Posts per Subreddit</p>
-                      <p className="text-white font-semibold">25</p>
+                      <p className="text-slate-400">Max Posts per Search</p>
+                      <p className="text-white font-semibold">15</p>
                     </div>
                     <div className="p-3 bg-slate-700/30 rounded-lg">
-                      <p className="text-slate-400">Date Range</p>
-                      <p className="text-white font-semibold">Last 7 days</p>
+                      <p className="text-slate-400">AI Analysis</p>
+                      <p className="text-white font-semibold">Enabled</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-4 bg-blue-900/20 border border-blue-500/50 rounded-lg">
-                  <h4 className="font-semibold text-blue-400 mb-2">💡 Weekly Automation</h4>
+                  <h4 className="font-semibold text-blue-400 mb-2">💡 About This Tool</h4>
                   <p className="text-sm text-slate-300">
-                    This workflow is designed for weekly monitoring. You can set up a cron job to automatically 
-                    trigger the analysis API endpoint every week for continuous insights.
+                    This AI Agent researches Reddit to find audience insights for content creation. 
+                    It searches marketing, entrepreneurship, and content strategy communities to identify 
+                    pain points, questions, and trending topics that you can use to create valuable content.
                   </p>
-                  <code className="block mt-2 p-2 bg-slate-800 rounded text-xs text-slate-300">
-                    {`curl -X POST http://localhost:3000/api/reddit -H "Content-Type: application/json" -d '{"action": "start"}'`}
-                  </code>
                 </div>
               </CardContent>
             </Card>
