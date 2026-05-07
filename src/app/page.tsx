@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Sidebar } from '@/components/sidebar';
+import { LoginPage } from '@/components/login-page';
 import { cn } from '@/lib/utils';
 import { 
   Search, 
@@ -133,6 +134,9 @@ const sentimentColors: Record<string, string> = {
 };
 
 function DashboardContent() {
+  // Auth State
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
   // State
   const [patterns, setPatterns] = useState<InsightPattern[]>([]);
   const [industries, setIndustries] = useState<IndustryPreset[]>([]);
@@ -147,6 +151,29 @@ function DashboardContent() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Check for existing session
+  useEffect(() => {
+    const loggedIn = sessionStorage.getItem('isLoggedIn');
+    if (loggedIn === 'true') {
+      setIsLoggedIn(true);
+    }
+  }, []);
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+    sessionStorage.setItem('isLoggedIn', 'true');
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    sessionStorage.removeItem('isLoggedIn');
+  };
+
+  // Show login page if not logged in
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   // Fetch patterns and industries on mount
   useEffect(() => {
@@ -273,6 +300,7 @@ function DashboardContent() {
         onTabChange={setActiveTab}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content */}

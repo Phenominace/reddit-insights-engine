@@ -13,7 +13,8 @@ import {
   Moon,
   Sun,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,6 +22,7 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onLogout?: () => void;
 }
 
 const navItems = [
@@ -31,7 +33,7 @@ const navItems = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, collapsed, onToggleCollapse, onLogout }: SidebarProps) {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -86,7 +88,7 @@ export function Sidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }:
       </nav>
 
       {/* Theme Toggle & Footer */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+      <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
         <Button
           variant="outline"
           onClick={toggleTheme}
@@ -107,6 +109,20 @@ export function Sidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }:
             </>
           )}
         </Button>
+        
+        {onLogout && (
+          <Button
+            variant="ghost"
+            onClick={onLogout}
+            className={cn(
+              "w-full justify-start gap-3 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-400",
+              collapsed && "justify-center px-2"
+            )}
+          >
+            <LogOut className="h-5 w-5" />
+            {!collapsed && <span>Logout</span>}
+          </Button>
+        )}
       </div>
     </aside>
   );
