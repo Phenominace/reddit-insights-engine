@@ -276,9 +276,9 @@ Content: ${post.selftext.substring(0, 1500)}
         id: `opp-${category}-${Date.now()}`,
         title: `Address "${pattern?.label || category}" concerns`,
         description: `Create content addressing the ${posts.length} posts about ${pattern?.description || category}`,
-        category,
+        category: category as InsightCategory,
         priority: posts.length > 5 ? 'high' : posts.length > 2 ? 'medium' : 'low',
-        suggestedContentType: this.suggestContentTypes(category),
+        suggestedContentType: this.suggestContentTypes(category as InsightCategory),
         keywords: phrases,
         sourcePosts: posts.map(p => p.id),
         exactPhrases: phrases
