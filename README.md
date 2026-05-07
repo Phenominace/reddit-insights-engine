@@ -1,58 +1,36 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+# Reddit Insights Engine - AI Audience Research Agent
 
-A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
+An advanced AI-powered audience research tool that extracts deep insights from Reddit communities across ANY industry. This agent identifies where people complain, where they pay, and where data confirms patterns.
 
-## ✨ Technology Stack
+## ✨ Features
 
-This scaffold provides a robust foundation built with:
+### 🔍 15 Insight Categories
+The AI agent extracts these specific insight types from Reddit posts:
 
-### 🎯 Core Framework
-- **⚡ Next.js 16** - The React framework for production with App Router
-- **📘 TypeScript 5** - Type-safe JavaScript for better developer experience
-- **🎨 Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
+1. **Complaints** - Direct complaints ("I hate…", "Why is it so hard to…")
+2. **Frustrations** - Ongoing struggles ("This never works…", "I'm tired of…")
+3. **Desired Outcomes** - What they want ("I just want…", "How do I get…")
+4. **Failed Solutions** - What didn't work ("I tried X but…")
+5. **Comparisons** - Product/service comparisons ("X vs Y", "Which is better…")
+6. **Objections** - Reasons against buying ("Too expensive", "Not worth it")
+7. **Fears** - Concerns and worries ("What if…", "I don't want to…")
+8. **Urgent Problems** - Time-sensitive needs ("ASAP", "quick fix", "fast way")
+9. **Repeated Questions** - Common questions asked by many users
+10. **Strong Emotions** - Expressions of anger, regret, excitement
+11. **Exact Phrases** - Word-for-word patterns people repeat
+12. **Before/After Stories** - Transformation stories ("I used to… now…")
+13. **Misconceptions** - Wrong beliefs ("I thought… but…")
+14. **Buy Triggers** - What made them purchase ("Finally bought because…")
+15. **Not Buying Reasons** - Why they didn't purchase ("I didn't buy because…")
 
-### 🧩 UI Components & Styling
-- **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
-- **🎯 Lucide React** - Beautiful & consistent icon library
-- **🌈 Framer Motion** - Production-ready motion library for React
-- **🎨 Next Themes** - Perfect dark mode in 2 lines of code
+### 🎯 Key Capabilities
 
-### 📋 Forms & Validation
-- **🎣 React Hook Form** - Performant forms with easy validation
-- **✅ Zod** - TypeScript-first schema validation
-
-### 🔄 State Management & Data Fetching
-- **🐻 Zustand** - Simple, scalable state management
-- **🔄 TanStack Query** - Powerful data synchronization for React
-- **🌐 Fetch** - Promise-based HTTP request
-
-### 🗄️ Database & Backend
-- **🗄️ Prisma** - Next-generation TypeScript ORM
-- **🔐 NextAuth.js** - Complete open-source authentication solution
-
-### 🎨 Advanced UI Features
-- **📊 TanStack Table** - Headless UI for building tables and datagrids
-- **🖱️ DND Kit** - Modern drag and drop toolkit for React
-- **📊 Recharts** - Redefined chart library built with React and D3
-- **🖼️ Sharp** - High performance image processing
-
-### 🌍 Internationalization & Utilities
-- **🌍 Next Intl** - Internationalization library for Next.js
-- **📅 Date-fns** - Modern JavaScript date utility library
-- **🪝 ReactUse** - Collection of essential React hooks for modern development
-
-## 🎯 Why This Scaffold?
-
-- **🏎️ Fast Development** - Pre-configured tooling and best practices
-- **🎨 Beautiful UI** - Complete shadcn/ui component library with advanced interactions
-- **🔒 Type Safety** - Full TypeScript configuration with Zod validation
-- **📱 Responsive** - Mobile-first design principles with smooth animations
-- **🗄️ Database Ready** - Prisma ORM configured for rapid backend development
-- **🔐 Auth Included** - NextAuth.js for secure authentication flows
-- **📊 Data Visualization** - Charts, tables, and drag-and-drop functionality
-- **🌍 i18n Ready** - Multi-language support with Next Intl
-- **🚀 Production Ready** - Optimized build and deployment settings
-- **🤖 AI-Friendly** - Structured codebase perfect for AI assistance
+- **Industry-Agnostic**: Works with ANY industry (SaaS, E-commerce, Health & Fitness, Finance, Marketing, Real Estate, etc.)
+- **AI-Powered Analysis**: Uses Groq's Llama 3.3 70B for fast, accurate insights
+- **Advanced Filtering**: Filter by sentiment, audience, subreddit, and all 15 insight types
+- **Deep Audience Insights**: See exact phrases, emotional language, and buying signals
+- **Export Reports**: Generate Excel reports with comprehensive analysis
+- **Real-time Search**: Search and filter insights instantly
 
 ## 🚀 Quick Start
 
@@ -60,82 +38,162 @@ This scaffold provides a robust foundation built with:
 # Install dependencies
 bun install
 
+# Set up environment variables
+cp .env.example .env.local
+# Add your GROQ_API_KEY to .env.local
+
 # Start development server
 bun run dev
-
-# Build for production
-bun run build
-
-# Start production server
-bun start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see your application running.
+Open [http://localhost:3000](http://localhost:3000) to see the application.
 
-## 🤖 Powered by Z.ai
+## 📋 Environment Variables
 
-This scaffold is optimized for use with [Z.ai](https://chat.z.ai) - your AI assistant for:
+Create a `.env.local` file in the root directory:
 
-- **💻 Code Generation** - Generate components, pages, and features instantly
-- **🎨 UI Development** - Create beautiful interfaces with AI assistance  
-- **🔧 Bug Fixing** - Identify and resolve issues with intelligent suggestions
-- **📝 Documentation** - Auto-generate comprehensive documentation
-- **🚀 Optimization** - Performance improvements and best practices
+```env
+GROQ_API_KEY=your_groq_api_key_here
+API_SECRET=your_custom_secret_here
+```
 
-Ready to build something amazing? Start chatting with Z.ai at [chat.z.ai](https://chat.z.ai) and experience the future of AI-powered development!
+Get your Groq API key from [console.groq.com](https://console.groq.com)
+
+## 🎯 How to Use
+
+### Dashboard Tab
+1. Click "Run Quick Analysis" to instantly search Reddit and get AI insights
+2. View analyzed posts with pain points, questions, and sentiment
+3. See target subreddits and focus topics
+
+### Insights Search Tab
+1. **Search by Topic**: Enter keywords related to your industry
+2. **Filter by Sentiment**: Positive, negative, neutral, mixed
+3. **Filter by Audience**: Founders, professionals, marketers, etc.
+4. **Filter by Subreddit**: Choose specific communities
+5. **Filter by Insight Type**: Select from 15 insight categories:
+   - Complaints, Frustrations, Desired Outcomes
+   - Failed Solutions, Comparisons, Objections
+   - Fears, Urgent Problems, Buy Triggers
+   - Before/After Stories, Misconceptions, and more
+6. View detailed audience insights with exact phrases
+
+### Settings Tab
+- View current configuration
+- See target subreddits and focus topics
+- Review analysis parameters
+
+## 🏗️ Architecture
+
+### Frontend
+- **Next.js 16** with App Router
+- **TypeScript** for type safety
+- **Tailwind CSS** + **shadcn/ui** for styling
+- **Lucide Icons** for iconography
+
+### Backend
+- **Groq API** for AI analysis (Llama 3.3 70B)
+- **Reddit Scraper** for data collection
+- **Python Script** for Excel report generation
+
+### Data Flow
+1. User initiates search or quick analysis
+2. Reddit scraper collects posts from target subreddits
+3. Groq AI analyzes each post for 15 insight categories
+4. Results are cached and filterable
+5. Users can export reports as Excel files
 
 ## 📁 Project Structure
 
 ```
 src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable React components
-│   └── ui/             # shadcn/ui components
-├── hooks/              # Custom React hooks
-└── lib/                # Utility functions and configurations
+├── app/
+│   ├── api/reddit/route.ts    # API endpoints
+│   ├── page.tsx               # Main dashboard UI
+│   └── layout.tsx             # App layout
+├── lib/
+│   ├── ai-analyzer.ts         # Groq AI analysis service
+│   ├── reddit-scraper.ts      # Reddit data collector
+│   ├── types.ts               # TypeScript definitions
+│   └── utils.ts               # Utility functions
+scripts/
+├── generate_excel_report.py   # Excel report generator
 ```
 
-## 🎨 Available Features & Components
+## 🔧 Configuration
 
-This scaffold includes a comprehensive set of modern web development tools:
+### Default Subreddits
+- r/marketing
+- r/entrepreneur
+- r/content_marketing
+- r/contentcreation
+- r/founders
 
-### 🧩 UI Components (shadcn/ui)
-- **Layout**: Card, Separator, Aspect Ratio, Resizable Panels
-- **Forms**: Input, Textarea, Select, Checkbox, Radio Group, Switch
-- **Feedback**: Alert, Toast (Sonner), Progress, Skeleton
-- **Navigation**: Breadcrumb, Menubar, Navigation Menu, Pagination
-- **Overlay**: Dialog, Sheet, Popover, Tooltip, Hover Card
-- **Data Display**: Badge, Avatar, Calendar
+You can customize these in `src/lib/types.ts` under `DEFAULT_CONFIG`.
 
-### 📊 Advanced Data Features
-- **Tables**: Powerful data tables with sorting, filtering, pagination (TanStack Table)
-- **Charts**: Beautiful visualizations with Recharts
-- **Forms**: Type-safe forms with React Hook Form + Zod validation
+### AI Model
+- **Provider**: Groq
+- **Model**: llama-3.3-70b-versatile
+- **Temperature**: 0.3 (focused analysis)
 
-### 🎨 Interactive Features
-- **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
-- **Theme Switching**: Built-in dark/light mode support
+## 💡 Use Cases
 
-### 🔐 Backend Integration
-- **Authentication**: Ready-to-use auth flows with NextAuth.js
-- **Database**: Type-safe database operations with Prisma
-- **API Client**: HTTP requests with Fetch + TanStack Query
-- **State Management**: Simple and scalable with Zustand
+### For Content Creators
+- Find content ideas based on real audience pain points
+- Discover questions your audience is asking
+- Identify trending topics in your industry
 
-### 🌍 Production Features
-- **Internationalization**: Multi-language support with Next Intl
-- **Image Optimization**: Automatic image processing with Sharp
-- **Type Safety**: End-to-end TypeScript with Zod validation
-- **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
+### For Marketers
+- Understand customer objections and fears
+- Find buy triggers to use in campaigns
+- Extract exact phrases for ad copy
 
-## 🤝 Get Started with Z.ai
+### For Product Teams
+- Identify failed solutions customers have tried
+- Discover desired outcomes and use cases
+- Find misconceptions to address in messaging
 
-1. **Clone this scaffold** to jumpstart your project
-2. **Visit [chat.z.ai](https://chat.z.ai)** to access your AI coding assistant
-3. **Start building** with intelligent code generation and assistance
-4. **Deploy with confidence** using the production-ready setup
+### For Researchers
+- Gather qualitative data at scale
+- Track sentiment trends over time
+- Compare insights across industries
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+1. Push code to GitHub
+2. Import project in Vercel
+3. Add environment variables:
+   - `GROQ_API_KEY`
+   - `API_SECRET`
+4. Deploy
+
+### Manual Deployment
+```bash
+bun run build
+bun start
+```
+
+## 📊 Sample Output
+
+Each analyzed post includes:
+- **Basic Info**: Title, subreddit, URL, sentiment
+- **Pain Points**: Specific challenges mentioned
+- **Questions**: Explicit and implicit questions
+- **Target Audience**: Who this resonates with
+- **Industry**: Detected industry category
+- **Deep Insights**: All 15 insight categories with exact phrases
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+MIT License - feel free to use this for personal or commercial projects.
 
 ---
 
-Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+**Built with ❤️ using Next.js, Groq AI, and shadcn/ui**
+
+Powered by [Z.ai](https://chat.z.ai) 🚀

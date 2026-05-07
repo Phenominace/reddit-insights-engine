@@ -15,6 +15,24 @@ export interface RedditPost {
   upvoteRatio: number;
 }
 
+export interface AudienceInsight {
+  complaints: string[];           // "I hate…", "Why is it so hard to…"
+  frustrations: string[];          // "This never works…", "I'm tired of…"
+  desiredOutcomes: string[];       // "I just want…", "How do I get…"
+  failedSolutions: string[];       // "I tried X but…"
+  comparisons: string[];           // "X vs Y", "Which is better…"
+  objections: string[];            // "Too expensive", "Not worth it"
+  fears: string[];                 // "What if…", "I don't want to…"
+  urgentProblems: string[];        // "ASAP", "quick fix", "fast way"
+  repeatedQuestions: string[];     // same question asked many times
+  strongEmotions: string[];        // anger, regret, excitement
+  exactPhrases: string[];          // word-for-word patterns people repeat
+  beforeAfterStories: string[];    // "I used to… now…"
+  misconceptions: string[];        // "I thought… but…"
+  buyTriggers: string[];           // "Finally bought because…"
+  notBuyingReasons: string[];      // "I didn't buy because…"
+}
+
 export interface AnalyzedPost extends RedditPost {
   painPoints: string[];
   questions: string[];
@@ -23,6 +41,8 @@ export interface AnalyzedPost extends RedditPost {
   contentOpportunity: 'high' | 'medium' | 'low';
   summary: string;
   targetAudience: string[];
+  audienceInsight?: AudienceInsight;  // Detailed insight categorization
+  industry?: string;                   // Industry/category this post belongs to
 }
 
 export interface ContentOpportunity {

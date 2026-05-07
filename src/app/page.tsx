@@ -29,6 +29,24 @@ interface AnalyzedPost {
   summary: string
   targetAudience: string[]
   url: string
+  audienceInsight?: {
+    complaints: string[]
+    frustrations: string[]
+    desiredOutcomes: string[]
+    failedSolutions: string[]
+    comparisons: string[]
+    objections: string[]
+    fears: string[]
+    urgentProblems: string[]
+    repeatedQuestions: string[]
+    strongEmotions: string[]
+    exactPhrases: string[]
+    beforeAfterStories: string[]
+    misconceptions: string[]
+    buyTriggers: string[]
+    notBuyingReasons: string[]
+  }
+  industry?: string
 }
 
 const SUBREDDITS = [
@@ -64,6 +82,7 @@ export default function RedditInsightsDashboard() {
   const [selectedSentiments, setSelectedSentiments] = useState<string[]>([])
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([])
   const [selectedSubreddits, setSelectedSubreddits] = useState<string[]>([])
+  const [selectedInsightTypes, setSelectedInsightTypes] = useState<string[]>([])
   const [showPainPointsOnly, setShowPainPointsOnly] = useState(false)
   const [showQuestionsOnly, setShowQuestionsOnly] = useState(false)
   const [searchResults, setSearchResults] = useState<AnalyzedPost[]>([])
@@ -98,11 +117,20 @@ export default function RedditInsightsDashboard() {
     )
   }
 
+  const toggleInsightType = (insightType: string) => {
+    setSelectedInsightTypes(prev => 
+      prev.includes(insightType) 
+        ? prev.filter(i => i !== insightType)
+        : [...prev, insightType]
+    )
+  }
+
   const clearFilters = () => {
     setSearchQuery('')
     setSelectedSentiments([])
     setSelectedAudiences([])
     setSelectedSubreddits([])
+    setSelectedInsightTypes([])
     setShowPainPointsOnly(false)
     setShowQuestionsOnly(false)
     setSearchResults([])
@@ -188,7 +216,7 @@ export default function RedditInsightsDashboard() {
   }
 
   const runInsightsSearch = async () => {
-    if (!searchQuery.trim() && selectedSentiments.length === 0 && selectedAudiences.length === 0) {
+    if (!searchQuery.trim() && selectedSentiments.length === 0 && selectedAudiences.length === 0 && selectedInsightTypes.length === 0) {
       setError('Please enter a search query or select filters')
       return
     }
@@ -207,6 +235,7 @@ export default function RedditInsightsDashboard() {
           sentiments: selectedSentiments,
           audiences: selectedAudiences,
           subreddits: selectedSubreddits.length > 0 ? selectedSubreddits : SUBREDDITS,
+          insightTypes: selectedInsightTypes,
           painPointsOnly: showPainPointsOnly,
           questionsOnly: showQuestionsOnly
         })
@@ -594,6 +623,51 @@ export default function RedditInsightsDashboard() {
                   </div>
                 </div>
 
+                {/* Insight Type Filters */}
+                <div className="space-y-3 pt-4 border-t border-slate-700">
+                  <Label className="text-white font-semibold flex items-center gap-2">
+                    <Target className="w-4 h-4 text-orange-400" />
+                    Insight Categories (15 Types)
+                  </Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                      { id: 'complaints', label: 'Complaints', icon: Frown, desc: '"I hate…", "Why so hard…"' },
+                      { id: 'frustrations', label: 'Frustrations', icon: AlertTriangle, desc: '"This never works…"' },
+                      { id: 'desiredOutcomes', label: 'Desired Outcomes', icon: Target, desc: '"I just want…"' },
+                      { id: 'failedSolutions', label: 'Failed Solutions', icon: X, desc: '"I tried X but…"' },
+                      { id: 'comparisons', label: 'Comparisons', icon: RefreshCw, desc: '"X vs Y"' },
+                      { id: 'objections', label: 'Objections', icon: AlertCircle, desc: '"Too expensive"' },
+                      { id: 'fears', label: 'Fears', icon: AlertTriangle, desc: '"What if…"' },
+                      { id: 'urgentProblems', label: 'Urgent Problems', icon: Clock, desc: '"ASAP", "quick fix"' },
+                      { id: 'buyTriggers', label: 'Buy Triggers', icon: CheckCircle, desc: '"Finally bought because…"' },
+                      { id: 'notBuyingReasons', label: "Didn't Buy", icon: X, desc: '"I didn't buy because…"' },
+                      { id: 'beforeAfterStories', label: 'Before/After', icon: TrendingUp, desc: '"I used to… now…"' },
+                      { id: 'misconceptions', label: 'Misconceptions', icon: Meh, desc: '"I thought… but…"' }
+                    ].map((type) => (
+                      <div 
+                        key={type.id} 
+                        className={`flex items-start space-x-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                          selectedInsightTypes.includes(type.id) 
+                            ? 'bg-orange-500/20 border border-orange-500/50' 
+                            : 'bg-slate-700/30 hover:bg-slate-700/50'
+                        }`}
+                        onClick={() => toggleInsightType(type.id)}
+                      >
+                        <Checkbox
+                          id={`insight-${type.id}`}
+                          checked={selectedInsightTypes.includes(type.id)}
+                          onCheckedChange={(e) => e && toggleInsightType(type.id)}
+                          className="mt-0.5"
+                        />
+                        <label htmlFor={`insight-${type.id}`} className="text-xs text-slate-300 cursor-pointer flex-1">
+                          <div className="font-medium text-white">{type.label}</div>
+                          <div className="text-slate-400">{type.desc}</div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Toggle Filters */}
                 <div className="flex flex-wrap gap-6 pt-4 border-t border-slate-700">
                   <div className="flex items-center space-x-2">
@@ -697,6 +771,98 @@ export default function RedditInsightsDashboard() {
                                       {aud}
                                     </Badge>
                                   ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {post.industry && (
+                              <div className="mt-2">
+                                <Badge variant="outline" className="border-green-500/50 text-green-400">
+                                  Industry: {post.industry}
+                                </Badge>
+                              </div>
+                            )}
+
+                            {/* Detailed Audience Insights */}
+                            {post.audienceInsight && (
+                              <div className="mt-3 pt-3 border-t border-slate-600">
+                                <p className="text-xs text-orange-400 font-semibold mb-2 flex items-center gap-1">
+                                  <Target className="w-3 h-3" />
+                                  Deep Audience Insights
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {post.audienceInsight.complaints?.length > 0 && (
+                                    <div className="bg-red-900/20 p-2 rounded">
+                                      <p className="text-xs text-red-400 font-medium mb-1">😤 Complaints:</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {post.audienceInsight.complaints.slice(0, 2).map((c, i) => (
+                                          <Badge key={i} variant="outline" className="text-xs border-red-500/30 text-red-300 bg-red-900/10">
+                                            {c}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {post.audienceInsight.buyTriggers?.length > 0 && (
+                                    <div className="bg-green-900/20 p-2 rounded">
+                                      <p className="text-xs text-green-400 font-medium mb-1">✅ Buy Triggers:</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {post.audienceInsight.buyTriggers.slice(0, 2).map((t, i) => (
+                                          <Badge key={i} variant="outline" className="text-xs border-green-500/30 text-green-300 bg-green-900/10">
+                                            {t}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {post.audienceInsight.frustrations?.length > 0 && (
+                                    <div className="bg-orange-900/20 p-2 rounded">
+                                      <p className="text-xs text-orange-400 font-medium mb-1">😓 Frustrations:</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {post.audienceInsight.frustrations.slice(0, 2).map((f, i) => (
+                                          <Badge key={i} variant="outline" className="text-xs border-orange-500/30 text-orange-300 bg-orange-900/10">
+                                            {f}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {post.audienceInsight.desiredOutcomes?.length > 0 && (
+                                    <div className="bg-blue-900/20 p-2 rounded">
+                                      <p className="text-xs text-blue-400 font-medium mb-1">🎯 Desired Outcomes:</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {post.audienceInsight.desiredOutcomes.slice(0, 2).map((d, i) => (
+                                          <Badge key={i} variant="outline" className="text-xs border-blue-500/30 text-blue-300 bg-blue-900/10">
+                                            {d}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {post.audienceInsight.objections?.length > 0 && (
+                                    <div className="bg-yellow-900/20 p-2 rounded">
+                                      <p className="text-xs text-yellow-400 font-medium mb-1">🚫 Objections:</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {post.audienceInsight.objections.slice(0, 2).map((o, i) => (
+                                          <Badge key={i} variant="outline" className="text-xs border-yellow-500/30 text-yellow-300 bg-yellow-900/10">
+                                            {o}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {post.audienceInsight.beforeAfterStories?.length > 0 && (
+                                    <div className="bg-purple-900/20 p-2 rounded">
+                                      <p className="text-xs text-purple-400 font-medium mb-1">📈 Before/After:</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {post.audienceInsight.beforeAfterStories.slice(0, 2).map((s, i) => (
+                                          <Badge key={i} variant="outline" className="text-xs border-purple-500/30 text-purple-300 bg-purple-900/10">
+                                            {s}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
