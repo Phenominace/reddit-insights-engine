@@ -22,8 +22,6 @@ const nextConfig: NextConfig = {
   
   // Experimental features for speed
   experimental: {
-    // Enable faster builds
-    turboDev: true,
     // Optimize package imports
     optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
   },
