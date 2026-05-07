@@ -279,6 +279,7 @@ async function insightsSearch(params: {
   sentiments?: string[];
   audiences?: string[];
   subreddits?: string[];
+  insightTypes?: string[];
   painPointsOnly?: boolean;
   questionsOnly?: boolean;
 }) {
@@ -287,6 +288,7 @@ async function insightsSearch(params: {
     sentiments = [],
     audiences = [],
     subreddits = [],
+    insightTypes = [],
     painPointsOnly = false,
     questionsOnly = false
   } = params;
@@ -314,7 +316,8 @@ async function insightsSearch(params: {
       post.title.toLowerCase().includes(searchLower) ||
       post.summary?.toLowerCase().includes(searchLower) ||
       post.painPoints?.some(pp => pp.toLowerCase().includes(searchLower)) ||
-      post.questions?.some(q => q.toLowerCase().includes(searchLower))
+      post.questions?.some(q => q.toLowerCase().includes(searchLower)) ||
+      post.industry?.toLowerCase().includes(searchLower)
     );
   }
 
@@ -339,6 +342,17 @@ async function insightsSearch(params: {
     );
   }
 
+  // Filter by insight types (complaints, frustrations, buyTriggers, etc.)
+  if (insightTypes.length > 0) {
+    results = results.filter(post => {
+      if (!post.audienceInsight) return false;
+      return insightTypes.some(type => {
+        const insightArray = post.audienceInsight?.[type as keyof typeof post.audienceInsight];
+        return Array.isArray(insightArray) && insightArray.length > 0;
+      });
+    });
+  }
+
   if (painPointsOnly) {
     results = results.filter(post => post.painPoints && post.painPoints.length > 0);
   }
@@ -350,7 +364,7 @@ async function insightsSearch(params: {
   return NextResponse.json({
     success: true,
     query,
-    filters: { sentiments, audiences, subreddits, painPointsOnly, questionsOnly },
+    filters: { sentiments, audiences, subreddits, insightTypes, painPointsOnly, questionsOnly },
     totalResults: results.length,
     results: results.slice(0, 50)
   });

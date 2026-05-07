@@ -1,5 +1,5 @@
 // Reddit Insights Engine - AI Analysis Service (Groq Compatible)
-import { RedditPost, AnalyzedPost, ContentOpportunity, InsightReport, ScrapingConfig, DEFAULT_CONFIG } from './types';
+import { RedditPost, AnalyzedPost, ContentOpportunity, InsightReport, ScrapingConfig, DEFAULT_CONFIG, AudienceInsight } from './types';
 
 // Groq API configuration
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -13,6 +13,8 @@ interface LLMAnalysisResult {
   contentOpportunity: 'high' | 'medium' | 'low';
   summary: string;
   targetAudience: string[];
+  audienceInsight?: AudienceInsight;
+  industry?: string;
 }
 
 async function callGroqAPI(systemPrompt: string, userPrompt: string): Promise<string> {
@@ -53,7 +55,26 @@ export class AIAnalyzer {
    * Analyze a single Reddit post for insights
    */
   async analyzePost(post: RedditPost): Promise<LLMAnalysisResult> {
-    const systemPrompt = `You are an expert content strategist and marketing analyst. Your task is to analyze Reddit posts to extract actionable insights for content creation targeting professionals, service-based founders, and entrepreneurs.
+    const systemPrompt = `You are an expert AI audience research agent. Your task is to analyze Reddit posts to extract deep audience insights across ANY industry.
+
+Your role is to identify where people complain, where they pay, and where data confirms patterns. Extract the following insight categories from each post:
+
+**Insight Categories to Extract:**
+1. **Complaints**: Direct complaints ("I hate…", "Why is it so hard to…")
+2. **Frustrations**: Ongoing struggles ("This never works…", "I'm tired of…")
+3. **Desired Outcomes**: What they want ("I just want…", "How do I get…")
+4. **Failed Solutions**: What didn't work ("I tried X but…")
+5. **Comparisons**: Product/service comparisons ("X vs Y", "Which is better…")
+6. **Objections**: Reasons against buying ("Too expensive", "Not worth it")
+7. **Fears**: Concerns and worries ("What if…", "I don't want to…")
+8. **Urgent Problems**: Time-sensitive needs ("ASAP", "quick fix", "fast way")
+9. **Repeated Questions**: Common questions asked by many users
+10. **Strong Emotions**: Expressions of anger, regret, excitement
+11. **Exact Phrases**: Word-for-word patterns people repeat
+12. **Before/After Stories**: Transformation stories ("I used to… now…")
+13. **Misconceptions**: Wrong beliefs ("I thought… but…")
+14. **Buy Triggers**: What made them purchase ("Finally bought because…")
+15. **Not Buying Reasons**: Why they didn't purchase ("I didn't buy because…")
 
 Analyze the post and return ONLY a valid JSON object with the following structure (no markdown, no code blocks, just pure JSON):
 {
@@ -63,19 +84,38 @@ Analyze the post and return ONLY a valid JSON object with the following structur
   "sentiment": "one of: positive, negative, neutral, mixed",
   "contentOpportunity": "one of: high, medium, low (based on engagement potential)",
   "summary": "one-sentence summary of the key insight",
-  "targetAudience": ["array of audience segments this resonates with"]
+  "targetAudience": ["array of audience segments this resonates with"],
+  "industry": "the industry/category this post belongs to (e.g., 'SaaS', 'E-commerce', 'Health & Fitness', 'Finance', 'Marketing', 'Real Estate', etc.)",
+  "audienceInsight": {
+    "complaints": ["direct complaints with exact phrases"],
+    "frustrations": ["ongoing struggles with exact phrases"],
+    "desiredOutcomes": ["what they want to achieve"],
+    "failedSolutions": ["solutions they tried that failed"],
+    "comparisons": ["any product/service comparisons"],
+    "objections": ["reasons against purchasing"],
+    "fears": ["concerns and worries"],
+    "urgentProblems": ["time-sensitive needs"],
+    "repeatedQuestions": ["common questions"],
+    "strongEmotions": ["emotional expressions found"],
+    "exactPhrases": ["word-for-word quotes that stand out"],
+    "beforeAfterStories": ["transformation stories"],
+    "misconceptions": ["wrong beliefs identified"],
+    "buyTriggers": ["what triggered purchase decisions"],
+    "notBuyingReasons": ["reasons for not buying"]
+  }
 }
 
 Focus on:
-- Identifying specific problems that content could address
-- Finding questions that indicate knowledge gaps
-- Understanding emotional undertones
-- Assessing content creation potential`;
+- Extracting EXACT phrases and quotes from the text
+- Identifying the industry context
+- Finding patterns that indicate buying intent or barriers
+- Capturing emotional language verbatim
+- Categorizing insights according to the 15 categories above`;
 
     const content = `
 Title: ${post.title}
 Subreddit: ${post.subreddit}
-Content: ${post.selftext.substring(0, 1500)}
+Content: ${post.selftext.substring(0, 2000)}
 URL: ${post.url}
     `.trim();
 
@@ -118,7 +158,9 @@ URL: ${post.url}
           sentiment: analysis.sentiment || 'neutral',
           contentOpportunity: analysis.contentOpportunity || 'low',
           summary: analysis.summary || '',
-          targetAudience: analysis.targetAudience || []
+          targetAudience: analysis.targetAudience || [],
+          audienceInsight: analysis.audienceInsight,
+          industry: analysis.industry
         };
 
         analyzed.push(analyzedPost);
@@ -305,7 +347,25 @@ Focus on content that would attract professionals, service-based founders, and e
       sentiment: 'neutral',
       contentOpportunity: 'low',
       summary: 'Unable to analyze post content.',
-      targetAudience: []
+      targetAudience: [],
+      audienceInsight: {
+        complaints: [],
+        frustrations: [],
+        desiredOutcomes: [],
+        failedSolutions: [],
+        comparisons: [],
+        objections: [],
+        fears: [],
+        urgentProblems: [],
+        repeatedQuestions: [],
+        strongEmotions: [],
+        exactPhrases: [],
+        beforeAfterStories: [],
+        misconceptions: [],
+        buyTriggers: [],
+        notBuyingReasons: []
+      },
+      industry: 'Unknown'
     };
   }
 
