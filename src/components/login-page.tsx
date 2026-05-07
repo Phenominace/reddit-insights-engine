@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ThemeProvider } from '@/components/theme-provider';
 import { cn } from '@/lib/utils';
 import { 
   Search, 
@@ -44,11 +43,13 @@ const features = [
   }
 ];
 
-function LoginContent({ onLogin }: { onLogin: () => void }) {
+export function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [fadeState, setFadeState] = useState<'in' | 'out'>('in');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const interval = setInterval(() => {
       setFadeState('out');
       
@@ -139,13 +140,5 @@ function LoginContent({ onLogin }: { onLogin: () => void }) {
         </p>
       </div>
     </div>
-  );
-}
-
-export function LoginPage({ onLogin }: { onLogin: () => void }) {
-  return (
-    <ThemeProvider>
-      <LoginContent onLogin={onLogin} />
-    </ThemeProvider>
   );
 }

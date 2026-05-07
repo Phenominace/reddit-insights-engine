@@ -136,6 +136,7 @@ const sentimentColors: Record<string, string> = {
 function DashboardContent() {
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // State
   const [patterns, setPatterns] = useState<InsightPattern[]>([]);
@@ -152,8 +153,9 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Check for existing session
+  // Check for existing session after mount
   useEffect(() => {
+    setMounted(true);
     const loggedIn = sessionStorage.getItem('isLoggedIn');
     if (loggedIn === 'true') {
       setIsLoggedIn(true);
@@ -169,6 +171,15 @@ function DashboardContent() {
     setIsLoggedIn(false);
     sessionStorage.removeItem('isLoggedIn');
   };
+
+  // Show loading state during hydration
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-lime-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   // Show login page if not logged in
   if (!isLoggedIn) {
