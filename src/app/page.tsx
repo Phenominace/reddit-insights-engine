@@ -107,26 +107,26 @@ const categoryIcons: Record<string, React.ReactNode> = {
 const categoryColors: Record<string, string> = {
   complaints: 'bg-red-100 text-red-800 border-red-200',
   frustrations: 'bg-orange-100 text-orange-800 border-orange-200',
-  desired_outcomes: 'bg-green-100 text-green-800 border-green-200',
+  desired_outcomes: 'bg-lime-100 text-lime-800 border-lime-200',
   failed_solutions: 'bg-gray-100 text-gray-800 border-gray-200',
-  comparisons: 'bg-blue-100 text-blue-800 border-blue-200',
+  comparisons: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   objections: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   fears: 'bg-purple-100 text-purple-800 border-purple-200',
   urgent_problems: 'bg-red-100 text-red-800 border-red-200',
-  repeated_questions: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  strong_emotions: 'bg-pink-100 text-pink-800 border-pink-200',
+  repeated_questions: 'bg-green-100 text-green-800 border-green-200',
+  strong_emotions: 'bg-lime-100 text-lime-800 border-lime-200',
   exact_phrases: 'bg-teal-100 text-teal-800 border-teal-200',
-  before_after: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  before_after: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   misconceptions: 'bg-amber-100 text-amber-800 border-amber-200',
-  buying_triggers: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  buying_triggers: 'bg-green-100 text-green-800 border-green-200',
   non_buying_reasons: 'bg-rose-100 text-rose-800 border-rose-200'
 };
 
 const sentimentColors: Record<string, string> = {
-  positive: 'bg-green-500',
+  positive: 'bg-lime-500',
   negative: 'bg-red-500',
   neutral: 'bg-gray-500',
-  mixed: 'bg-yellow-500'
+  mixed: 'bg-amber-500'
 };
 
 export default function AudienceResearchAgent() {
@@ -262,23 +262,23 @@ export default function AudienceResearchAgent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-lime-50 via-green-50 to-emerald-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <header className="bg-gradient-to-r from-lime-600 via-green-600 to-emerald-600 sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <Target className="h-7 w-7 text-blue-600" />
+              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Target className="h-7 w-7 text-lime-200" />
                 AI Audience Research Agent
               </h1>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-lime-100 mt-1">
                 Where people complain + where they pay + where data confirms
               </p>
             </div>
             <div className="flex items-center gap-3">
               {results.length > 0 && (
-                <Button onClick={handleExport} variant="outline" className="gap-2">
+                <Button onClick={handleExport} variant="outline" className="gap-2 bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white">
                   <Download className="h-4 w-4" />
                   Export Results
                 </Button>
@@ -291,16 +291,16 @@ export default function AudienceResearchAgent() {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white border border-slate-200">
-            <TabsTrigger value="search" className="gap-2">
+          <TabsList className="bg-white border border-lime-200 shadow-sm">
+            <TabsTrigger value="search" className="gap-2 data-[state=active]:bg-lime-100 data-[state=active]:text-lime-800">
               <Search className="h-4 w-4" />
               Insights Search
             </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-2">
+            <TabsTrigger value="categories" className="gap-2 data-[state=active]:bg-lime-100 data-[state=active]:text-lime-800">
               <Filter className="h-4 w-4" />
               15 Insight Patterns
             </TabsTrigger>
-            <TabsTrigger value="industries" className="gap-2">
+            <TabsTrigger value="industries" className="gap-2 data-[state=active]:bg-lime-100 data-[state=active]:text-lime-800">
               <Building2 className="h-4 w-4" />
               Industry Presets
             </TabsTrigger>
@@ -326,7 +326,7 @@ export default function AudienceResearchAgent() {
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                     className="flex-1"
                   />
-                  <Button onClick={handleSearch} disabled={loading} className="gap-2">
+                  <Button onClick={handleSearch} disabled={loading} className="gap-2 bg-gradient-to-r from-lime-500 to-green-500 hover:from-lime-600 hover:to-green-600 text-white">
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -363,7 +363,7 @@ export default function AudienceResearchAgent() {
                       <Badge
                         key={pattern.category}
                         variant={selectedCategories.includes(pattern.category) ? 'default' : 'outline'}
-                        className={`cursor-pointer ${selectedCategories.includes(pattern.category) ? 'bg-blue-600' : ''}`}
+                        className={`cursor-pointer ${selectedCategories.includes(pattern.category) ? 'bg-gradient-to-r from-lime-500 to-green-500 text-white' : 'border-lime-300 text-lime-700'}`}
                         onClick={() => handleCategoryToggle(pattern.category)}
                       >
                         {pattern.icon} {pattern.label}
@@ -380,7 +380,7 @@ export default function AudienceResearchAgent() {
                       <Badge
                         key={sentiment}
                         variant={selectedSentiments.includes(sentiment) ? 'default' : 'outline'}
-                        className={`cursor-pointer ${selectedSentiments.includes(sentiment) ? 'bg-blue-600' : ''}`}
+                        className={`cursor-pointer ${selectedSentiments.includes(sentiment) ? 'bg-gradient-to-r from-lime-500 to-green-500 text-white' : 'border-lime-300 text-lime-700'}`}
                         onClick={() => handleSentimentToggle(sentiment)}
                       >
                         {sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}
@@ -413,9 +413,9 @@ export default function AudienceResearchAgent() {
             {/* Summary Stats */}
             {summary && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
+                <Card className="border-lime-200">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Top Categories</CardTitle>
+                    <CardTitle className="text-sm font-medium text-lime-700">Top Categories</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -424,16 +424,16 @@ export default function AudienceResearchAgent() {
                           <Badge variant="outline" className={categoryColors[category] || ''}>
                             {formatCategoryLabel(category)}
                           </Badge>
-                          <span className="text-sm font-medium">{count}</span>
+                          <span className="text-sm font-medium text-lime-700">{count}</span>
                         </div>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-lime-200">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Sentiment Breakdown</CardTitle>
+                    <CardTitle className="text-sm font-medium text-lime-700">Sentiment Breakdown</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -441,21 +441,21 @@ export default function AudienceResearchAgent() {
                         <div key={sentiment} className="flex items-center gap-2">
                           <div className={`w-3 h-3 rounded-full ${sentimentColors[sentiment]}`} />
                           <span className="text-sm capitalize">{sentiment}</span>
-                          <span className="text-sm font-medium ml-auto">{count}</span>
+                          <span className="text-sm font-medium ml-auto text-lime-700">{count}</span>
                         </div>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-lime-200">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Exact Phrases Found</CardTitle>
+                    <CardTitle className="text-sm font-medium text-lime-700">Exact Phrases Found</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-1">
                       {summary.topPhrases.slice(0, 10).map((phrase, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
+                        <Badge key={i} variant="secondary" className="text-xs bg-lime-100 text-lime-800">
                           "{phrase}"
                         </Badge>
                       ))}
@@ -469,7 +469,7 @@ export default function AudienceResearchAgent() {
             {results.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">
+                  <h2 className="text-lg font-semibold text-lime-800">
                     {results.length} Insights Found
                   </h2>
                 </div>
@@ -488,7 +488,7 @@ export default function AudienceResearchAgent() {
                                 <div className={`w-2 h-2 rounded-full ${sentimentColors[post.sentiment]}`} />
                                 <span className="text-xs text-slate-500 capitalize">{post.sentiment}</span>
                                 {post.purchaseIntent === 'high' && (
-                                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">
+                                  <Badge className="bg-lime-100 text-lime-800 text-xs border border-lime-300">
                                     <ShoppingCart className="h-3 w-3 mr-1" /> High Purchase Intent
                                   </Badge>
                                 )}
@@ -517,7 +517,7 @@ export default function AudienceResearchAgent() {
                               <div className="grid grid-cols-2 gap-2 text-xs">
                                 {post.painPoints && post.painPoints.length > 0 && (
                                   <div>
-                                    <span className="font-medium text-slate-700">Pain Points:</span>
+                                    <span className="font-medium text-lime-700">Pain Points:</span>
                                     <ul className="text-slate-600">
                                       {post.painPoints.slice(0, 2).map((pp, i) => (
                                         <li key={i}>• {pp}</li>
@@ -527,7 +527,7 @@ export default function AudienceResearchAgent() {
                                 )}
                                 {post.buyingTriggers && post.buyingTriggers.length > 0 && (
                                   <div>
-                                    <span className="font-medium text-emerald-700">Buying Triggers:</span>
+                                    <span className="font-medium text-green-700">Buying Triggers:</span>
                                     <ul className="text-slate-600">
                                       {post.buyingTriggers.slice(0, 2).map((bt, i) => (
                                         <li key={i}>• {bt}</li>
@@ -547,7 +547,7 @@ export default function AudienceResearchAgent() {
                                 )}
                                 {post.exactPhrases && post.exactPhrases.length > 0 && (
                                   <div>
-                                    <span className="font-medium text-blue-700">Exact Phrases:</span>
+                                    <span className="font-medium text-emerald-700">Exact Phrases:</span>
                                     <ul className="text-slate-600">
                                       {post.exactPhrases.slice(0, 2).map((ep, i) => (
                                         <li key={i}>• "{ep}"</li>
@@ -563,7 +563,7 @@ export default function AudienceResearchAgent() {
                                 href={post.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 text-sm"
+                                className="text-lime-600 hover:text-lime-800 text-sm font-medium"
                               >
                                 View Post →
                               </a>
@@ -593,7 +593,7 @@ export default function AudienceResearchAgent() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {patterns.map((pattern) => (
-                    <Card key={pattern.category} className="bg-slate-50">
+                    <Card key={pattern.category} className="bg-gradient-to-br from-lime-50 to-green-50 border-lime-200">
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
                           <span className="text-2xl">{pattern.icon}</span>
@@ -602,7 +602,7 @@ export default function AudienceResearchAgent() {
                             <p className="text-sm text-slate-600 mt-1">{pattern.description}</p>
                             <div className="mt-2 flex flex-wrap gap-1">
                               {pattern.triggerPhrases.slice(0, 3).map((phrase, i) => (
-                                <Badge key={i} variant="secondary" className="text-xs">
+                                <Badge key={i} variant="secondary" className="text-xs bg-lime-100 text-lime-800">
                                   "{phrase}"
                                 </Badge>
                               ))}
@@ -631,7 +631,7 @@ export default function AudienceResearchAgent() {
                   {industries.map((industry) => (
                     <Card 
                       key={industry.id} 
-                      className={`cursor-pointer transition-colors ${selectedIndustry === industry.id ? 'ring-2 ring-blue-500' : 'hover:bg-slate-50'}`}
+                      className={`cursor-pointer transition-colors ${selectedIndustry === industry.id ? 'ring-2 ring-lime-500 bg-lime-50' : 'hover:bg-lime-50 border-lime-200'}`}
                       onClick={() => {
                         setSelectedIndustry(industry.id);
                         setQuery(industry.topics.join(' '));
@@ -643,7 +643,7 @@ export default function AudienceResearchAgent() {
                         <p className="text-sm text-slate-600 mt-1">{industry.description}</p>
                         <div className="mt-2 flex flex-wrap gap-1">
                           {industry.subreddits.slice(0, 4).map((sub, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
+                            <Badge key={i} variant="outline" className="text-xs border-lime-300 text-lime-700">
                               r/{sub}
                             </Badge>
                           ))}
