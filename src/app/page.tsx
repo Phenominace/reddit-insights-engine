@@ -153,7 +153,31 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Check for existing session after mount
+  const fetchPatterns = async () => {
+    try {
+      const res = await fetch('/api/reddit?action=patterns');
+      const data = await res.json();
+      if (data.success) {
+        setPatterns(data.patterns);
+      }
+    } catch (err) {
+      console.error('Failed to fetch patterns:', err);
+    }
+  };
+
+  const fetchIndustries = async () => {
+    try {
+      const res = await fetch('/api/reddit?action=industries');
+      const data = await res.json();
+      if (data.success) {
+        setIndustries(data.industries);
+      }
+    } catch (err) {
+      console.error('Failed to fetch industries:', err);
+    }
+  };
+
+  // Check for existing session after mount - ALL HOOKS MUST BE BEFORE CONDITIONAL RETURNS
   useEffect(() => {
     setMounted(true);
     const loggedIn = sessionStorage.getItem('isLoggedIn');
@@ -161,6 +185,14 @@ function DashboardContent() {
       setIsLoggedIn(true);
     }
   }, []);
+
+  // Fetch patterns and industries when logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchPatterns();
+      fetchIndustries();
+    }
+  }, [isLoggedIn]);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -185,36 +217,6 @@ function DashboardContent() {
   if (!isLoggedIn) {
     return <LoginPage onLogin={handleLogin} />;
   }
-
-  // Fetch patterns and industries on mount
-  useEffect(() => {
-    fetchPatterns();
-    fetchIndustries();
-  }, []);
-
-  const fetchPatterns = async () => {
-    try {
-      const res = await fetch('/api/reddit?action=patterns');
-      const data = await res.json();
-      if (data.success) {
-        setPatterns(data.patterns);
-      }
-    } catch (err) {
-      console.error('Failed to fetch patterns:', err);
-    }
-  };
-
-  const fetchIndustries = async () => {
-    try {
-      const res = await fetch('/api/reddit?action=industries');
-      const data = await res.json();
-      if (data.success) {
-        setIndustries(data.industries);
-      }
-    } catch (err) {
-      console.error('Failed to fetch industries:', err);
-    }
-  };
 
   const handleCategoryToggle = (category: string) => {
     setSelectedCategories(prev => 
