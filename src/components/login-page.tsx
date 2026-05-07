@@ -8,11 +8,9 @@ import {
   Search, 
   Target, 
   TrendingUp, 
-  Users, 
   Sparkles,
   ArrowRight,
   Zap,
-  BarChart3,
   MessageSquare
 } from 'lucide-react';
 
@@ -135,20 +133,8 @@ function LoginContent({ onLogin }: { onLogin: () => void }) {
           <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
         </Button>
 
-        {/* Trust Badges */}
-        <div className="mt-6 flex items-center justify-center gap-6 text-sm text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <Users className="h-4 w-4" />
-            <span>1,200+ users</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <BarChart3 className="h-4 w-4" />
-            <span>50k+ insights</span>
-          </div>
-        </div>
-
         {/* Footer */}
-        <p className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
+        <p className="mt-6 text-center text-xs text-slate-400 dark:text-slate-500">
           No credit card required • Start researching in seconds
         </p>
       </div>
