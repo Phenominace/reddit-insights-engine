@@ -1,4 +1,4 @@
-// Reddit Insights Engine - API Routes
+// AI Audience Research Agent - API Routes
 import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -6,18 +6,26 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { redditScraper } from '@/lib/reddit-scraper';
 import { aiAnalyzer } from '@/lib/ai-analyzer';
-import { ScrapingConfig, DEFAULT_CONFIG, JobStatus, AnalyzedPost } from '@/lib/types';
+import { 
+  ScrapingConfig, 
+  DEFAULT_CONFIG, 
+  JobStatus, 
+  AnalyzedPost, 
+  InsightCategory,
+  INSIGHT_PATTERNS,
+  INDUSTRY_PRESETS
+} from '@/lib/types';
 
 const execAsync = promisify(exec);
 
-// In-memory job storage (for demo - use database in production)
+// In-memory job storage
 const jobs = new Map<string, JobStatus>();
 
-// In-memory cache for analyzed posts (for search functionality)
+// In-memory cache for analyzed posts
 let cachedAnalyzedPosts: AnalyzedPost[] = [];
 
-// API Secret for authentication - set this in your Vercel environment variables
-const API_SECRET = process.env.API_SECRET || 'reddit-insights-2024';
+// API Secret for authentication
+const API_SECRET = process.env.API_SECRET || 'audience-research-2024';
 
 // Ensure download directory exists
 async function ensureDownloadDir() {
@@ -30,45 +38,22 @@ async function ensureDownloadDir() {
   return downloadDir;
 }
 
-// Validate API request with secret key
+// Validate API request
 function validateRequest(request: NextRequest, body?: Record<string, unknown>): boolean {
-  // Check header for authorization
   const authHeader = request.headers.get('authorization');
-  if (authHeader === `Bearer ${API_SECRET}`) {
-    return true;
-  }
-  
-  // Check body for secret (for frontend calls)
-  if (body && body.secret === API_SECRET) {
-    return true;
-  }
-  
-  // Check query params for secret
+  if (authHeader === `Bearer ${API_SECRET}`) return true;
+  if (body && body.secret === API_SECRET) return true;
   const { searchParams } = new URL(request.url);
-  if (searchParams.get('secret') === API_SECRET) {
-    return true;
-  }
-  
-  // Allow if no secret is configured (development mode)
-  if (API_SECRET === 'reddit-insights-2024' && process.env.NODE_ENV === 'development') {
-    return true;
-  }
-  
-  // For Vercel deployment, allow all requests (internal tool)
-  // You can restrict this by setting API_SECRET in environment variables
-  return true;
+  if (searchParams.get('secret') === API_SECRET) return true;
+  return true; // Allow for demo
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
-  const action = body.action || 'start';
+  const action = body.action || 'search';
 
-  // Validate request
   if (!validateRequest(request, body)) {
-    return NextResponse.json(
-      { error: 'Unauthorized - Invalid API secret' },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -78,9 +63,15 @@ export async function POST(request: NextRequest) {
       case 'status':
         return await getJobStatus(body.jobId);
       case 'quick':
-        return await quickSearch(body.topic, body.config);
-      case 'insights-search':
+        return await quickSearch(body.query || body.topic, body.config);
+      case 'search':
         return await insightsSearch(body);
+      case 'search-by-category':
+        return await searchByCategory(body.categories, body.subreddits);
+      case 'get-patterns':
+        return getPatterns();
+      case 'get-industries':
+        return getIndustries();
       case 'export-results':
         return await exportResults(body.results);
       default:
@@ -97,24 +88,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const action = searchParams.get('action') || 'status';
-  const jobId = searchParams.get('jobId');
+  const action = searchParams.get('action') || 'patterns';
 
-  // Validate request
   if (!validateRequest(request)) {
-    return NextResponse.json(
-      { error: 'Unauthorized - Invalid API secret' },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     switch (action) {
-      case 'status':
-        if (!jobId) {
-          return NextResponse.json({ error: 'jobId required' }, { status: 400 });
-        }
-        return await getJobStatus(jobId);
+      case 'patterns':
+        return getPatterns();
+      case 'industries':
+        return getIndustries();
       case 'download':
         return await downloadReport(searchParams.get('file') || '');
       case 'list':
@@ -131,6 +116,29 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Get available insight patterns/categories
+function getPatterns() {
+  return NextResponse.json({
+    success: true,
+    patterns: INSIGHT_PATTERNS.map(p => ({
+      category: p.category,
+      label: p.label,
+      description: p.description,
+      icon: p.icon,
+      triggerPhrases: p.triggerPhrases.slice(0, 5),
+      examples: p.examples
+    }))
+  });
+}
+
+// Get industry presets
+function getIndustries() {
+  return NextResponse.json({
+    success: true,
+    industries: INDUSTRY_PRESETS
+  });
+}
+
 async function startScrapingJob(config: Partial<ScrapingConfig> = {}) {
   const jobId = `job-${Date.now()}`;
   const mergedConfig: ScrapingConfig = {
@@ -138,10 +146,9 @@ async function startScrapingJob(config: Partial<ScrapingConfig> = {}) {
     ...config,
     subreddits: config.subreddits || DEFAULT_CONFIG.subreddits,
     topics: config.topics || DEFAULT_CONFIG.topics,
-    keywords: config.keywords || DEFAULT_CONFIG.keywords,
+    categories: config.categories || [],
   };
 
-  // Initialize job status
   const job: JobStatus = {
     id: jobId,
     status: 'pending',
@@ -151,13 +158,12 @@ async function startScrapingJob(config: Partial<ScrapingConfig> = {}) {
   };
   jobs.set(jobId, job);
 
-  // Start async processing
   processJob(jobId, mergedConfig).catch(console.error);
 
   return NextResponse.json({
     success: true,
     jobId,
-    message: 'Scraping job started',
+    message: 'Research job started',
     config: mergedConfig
   });
 }
@@ -167,54 +173,37 @@ async function processJob(jobId: string, config: ScrapingConfig) {
   if (!job) return;
 
   try {
-    // Phase 1: Scraping
     job.status = 'running';
-    job.message = 'Scraping Reddit...';
+    job.message = 'Gathering audience insights...';
     job.progress = 10;
     jobs.set(jobId, job);
 
     const scrapingResult = await redditScraper.scrape(config);
 
     if (!scrapingResult.success || scrapingResult.posts.length === 0) {
-      throw new Error('No posts found or scraping failed');
+      throw new Error('No posts found');
     }
 
     job.progress = 40;
-    job.message = `Found ${scrapingResult.posts.length} posts. Analyzing...`;
+    job.message = `Found ${scrapingResult.posts.length} posts. Analyzing insights...`;
     jobs.set(jobId, job);
 
-    // Phase 2: AI Analysis
     const report = await aiAnalyzer.generateReport(scrapingResult.posts, config);
-
-    // Cache analyzed posts for search functionality
     cachedAnalyzedPosts = report.analyzedPosts;
 
     job.progress = 80;
-    job.message = 'Generating Excel report...';
+    job.message = 'Generating report...';
     jobs.set(jobId, job);
 
-    // Phase 3: Generate Excel
     await ensureDownloadDir();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-    const jsonPath = path.join(process.cwd(), 'download', `report_${timestamp}.json`);
-    const excelPath = path.join(process.cwd(), 'download', `Reddit_Insights_${timestamp}.xlsx`);
+    const jsonPath = path.join(process.cwd(), 'download', `audience_insights_${timestamp}.json`);
 
-    // Save JSON report
     await fs.writeFile(jsonPath, JSON.stringify(report, null, 2));
 
-    // Generate Excel using Python script
-    const scriptPath = path.join(process.cwd(), 'scripts', 'generate_excel_report.py');
-    try {
-      await execAsync(`python3 "${scriptPath}" "${jsonPath}" "${excelPath}"`);
-    } catch (error) {
-      console.error('Excel generation error:', error);
-      // Continue without Excel if Python fails
-    }
-
-    // Complete job
     job.status = 'completed';
     job.progress = 100;
-    job.message = 'Report generated successfully!';
+    job.message = 'Report generated!';
     job.completedAt = new Date().toISOString();
     job.result = report;
     jobs.set(jobId, job);
@@ -249,9 +238,9 @@ async function getJobStatus(jobId: string) {
   });
 }
 
-async function quickSearch(topic: string, config: Partial<ScrapingConfig> = {}) {
-  if (!topic) {
-    return NextResponse.json({ error: 'Topic required for quick search' }, { status: 400 });
+async function quickSearch(query: string, config: Partial<ScrapingConfig> = {}) {
+  if (!query) {
+    return NextResponse.json({ error: 'Query required' }, { status: 400 });
   }
 
   const mergedConfig: ScrapingConfig = {
@@ -260,77 +249,106 @@ async function quickSearch(topic: string, config: Partial<ScrapingConfig> = {}) 
     subreddits: config.subreddits || DEFAULT_CONFIG.subreddits,
   };
 
-  const result = await redditScraper.quickSearch(topic, mergedConfig);
+  const result = await redditScraper.quickSearch(query, mergedConfig);
 
   return NextResponse.json({
     success: true,
-    topic,
+    query,
     postsFound: result.posts.length,
     posts: result.posts.slice(0, 10),
+    categoriesFound: result.metadata.categoriesFound,
     errors: result.errors
+  });
+}
+
+async function searchByCategory(
+  categories: InsightCategory[],
+  subreddits: string[] = []
+) {
+  if (!categories || categories.length === 0) {
+    return NextResponse.json({ error: 'Categories required' }, { status: 400 });
+  }
+
+  const result = await redditScraper.searchByCategories(categories, subreddits, 50);
+
+  return NextResponse.json({
+    success: true,
+    categories,
+    totalResults: result.posts.length,
+    results: result.posts,
+    metadata: result.metadata
   });
 }
 
 async function insightsSearch(params: {
   query?: string;
+  categories?: InsightCategory[];
   sentiments?: string[];
   audiences?: string[];
   subreddits?: string[];
+  industry?: string;
   painPointsOnly?: boolean;
-  questionsOnly?: boolean;
+  buyingSignalsOnly?: boolean;
+  purchaseIntent?: string[];
+  emotionIntensity?: string[];
 }) {
   const {
     query = '',
+    categories = [],
     sentiments = [],
     audiences = [],
     subreddits = [],
     painPointsOnly = false,
-    questionsOnly = false
+    buyingSignalsOnly = false,
+    purchaseIntent = [],
+    emotionIntensity = []
   } = params;
 
   let results: AnalyzedPost[] = [];
 
-  // Always fetch fresh results for new queries
-  const scrapingResult = await redditScraper.quickSearch(query || 'marketing', {
+  // Get posts from scraper
+  const scrapingResult = await redditScraper.quickSearch(query || 'business', {
     ...DEFAULT_CONFIG,
-    subreddits: subreddits.length > 0 ? subreddits : DEFAULT_CONFIG.subreddits
+    subreddits: subreddits.length > 0 ? subreddits : DEFAULT_CONFIG.subreddits,
+    categories
   });
 
   if (scrapingResult.posts.length > 0) {
-    // Check if posts already have analysis data (from pre-analyzed sample data)
-    const firstPost = scrapingResult.posts[0] as AnalyzedPost;
-    if (firstPost.painPoints && firstPost.painPoints.length > 0) {
-      // Posts already analyzed (sample data)
+    // Check if posts are already analyzed
+    const firstPost = scrapingResult.posts[0] as unknown as AnalyzedPost;
+    if (firstPost.categories && firstPost.categories.length > 0) {
       results = scrapingResult.posts as unknown as AnalyzedPost[];
     } else {
-      // Need to analyze (real scraped data)
+      // Need to analyze
       try {
-        const analyzed = await aiAnalyzer.analyzePosts(scrapingResult.posts.slice(0, 15));
-        results = analyzed;
+        results = await aiAnalyzer.analyzePosts(scrapingResult.posts.slice(0, 20));
       } catch (error) {
-        console.error('AI analysis failed, using posts without analysis:', error);
+        console.error('AI analysis failed:', error);
         results = scrapingResult.posts.map(p => ({
           ...p,
+          categories: [],
           painPoints: [],
           questions: [],
-          topics: [],
+          buyingTriggers: [],
+          objections: [],
+          desiredOutcomes: [],
+          exactPhrases: [],
           sentiment: 'neutral' as const,
+          emotionIntensity: 'low' as const,
           contentOpportunity: 'low' as const,
           summary: '',
-          targetAudience: []
+          targetAudience: [],
+          purchaseIntent: 'none' as const
         }));
       }
     }
     cachedAnalyzedPosts = results;
   }
 
-  if (query.trim()) {
-    const searchLower = query.toLowerCase();
+  // Apply filters
+  if (categories.length > 0) {
     results = results.filter(post => 
-      post.title.toLowerCase().includes(searchLower) ||
-      post.summary?.toLowerCase().includes(searchLower) ||
-      post.painPoints?.some(pp => pp.toLowerCase().includes(searchLower)) ||
-      post.questions?.some(q => q.toLowerCase().includes(searchLower))
+      post.categories?.some(cat => categories.includes(cat))
     );
   }
 
@@ -359,16 +377,56 @@ async function insightsSearch(params: {
     results = results.filter(post => post.painPoints && post.painPoints.length > 0);
   }
 
-  if (questionsOnly) {
-    results = results.filter(post => post.questions && post.questions.length > 0);
+  if (buyingSignalsOnly) {
+    results = results.filter(post => 
+      (post.buyingTriggers && post.buyingTriggers.length > 0) ||
+      post.purchaseIntent === 'high' ||
+      post.purchaseIntent === 'medium'
+    );
   }
+
+  if (purchaseIntent.length > 0) {
+    results = results.filter(post => purchaseIntent.includes(post.purchaseIntent));
+  }
+
+  if (emotionIntensity.length > 0) {
+    results = results.filter(post => emotionIntensity.includes(post.emotionIntensity));
+  }
+
+  // Calculate summary
+  const categoryCounts: Record<string, number> = {};
+  results.forEach(post => {
+    post.categories?.forEach(cat => {
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    });
+  });
+
+  const topCategories = Object.entries(categoryCounts)
+    .map(([category, count]) => ({ category: category as InsightCategory, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const allPhrases = results.flatMap(p => p.exactPhrases || []);
+  const topPhrases = [...new Set(allPhrases)].slice(0, 20);
+
+  const sentimentBreakdown = {
+    positive: results.filter(p => p.sentiment === 'positive').length,
+    negative: results.filter(p => p.sentiment === 'negative').length,
+    neutral: results.filter(p => p.sentiment === 'neutral').length,
+    mixed: results.filter(p => p.sentiment === 'mixed').length
+  };
 
   return NextResponse.json({
     success: true,
     query,
-    filters: { sentiments, audiences, subreddits, painPointsOnly, questionsOnly },
+    filters: { categories, sentiments, audiences, subreddits, painPointsOnly, buyingSignalsOnly },
     totalResults: results.length,
-    results: results.slice(0, 50)
+    results: results.slice(0, 50),
+    summary: {
+      topCategories,
+      topPhrases,
+      sentimentBreakdown
+    }
   });
 }
 
@@ -379,50 +437,59 @@ async function exportResults(results: AnalyzedPost[]) {
 
   await ensureDownloadDir();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-  const filename = `Filtered_Insights_${timestamp}.xlsx`;
+  const filename = `Audience_Insights_${timestamp}.json`;
   const filePath = path.join(process.cwd(), 'download', filename);
 
-  const report = {
+  // Build comprehensive export
+  const allPainPoints = results.flatMap(p => p.painPoints || []);
+  const allBuyingTriggers = results.flatMap(p => p.buyingTriggers || []);
+  const allObjections = results.flatMap(p => p.objections || []);
+  const allExactPhrases = results.flatMap(p => p.exactPhrases || []);
+
+  // Count frequency
+  const countItems = (items: string[]) => {
+    const counts: Record<string, number> = {};
+    items.forEach(item => {
+      counts[item] = (counts[item] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([item, count]) => ({ item, count }));
+  };
+
+  const exportData = {
     generatedAt: new Date().toISOString(),
     summary: {
-      totalPostsAnalyzed: results.length,
-      totalPainPoints: results.reduce((sum, p) => sum + (p.painPoints?.length || 0), 0),
-      totalQuestions: results.reduce((sum, p) => sum + (p.questions?.length || 0), 0),
-      sentimentDistribution: {
+      totalPosts: results.length,
+      sentimentBreakdown: {
         positive: results.filter(p => p.sentiment === 'positive').length,
         negative: results.filter(p => p.sentiment === 'negative').length,
         neutral: results.filter(p => p.sentiment === 'neutral').length,
         mixed: results.filter(p => p.sentiment === 'mixed').length
       },
-      topSubreddits: [...new Set(results.map(p => p.subreddit))].map(name => ({
-        name,
-        count: results.filter(p => p.subreddit === name).length
-      }))
+      purchaseIntentBreakdown: {
+        high: results.filter(p => p.purchaseIntent === 'high').length,
+        medium: results.filter(p => p.purchaseIntent === 'medium').length,
+        low: results.filter(p => p.purchaseIntent === 'low').length,
+        none: results.filter(p => p.purchaseIntent === 'none').length
+      }
     },
-    analyzedPosts: results,
-    contentOpportunities: [],
-    trendingTopics: [],
-    audienceInsights: [],
-    configuration: DEFAULT_CONFIG,
-    dateRange: { start: new Date().toISOString(), end: new Date().toISOString() }
+    insights: {
+      topPainPoints: countItems(allPainPoints).slice(0, 20),
+      topBuyingTriggers: countItems(allBuyingTriggers).slice(0, 20),
+      topObjections: countItems(allObjections).slice(0, 20),
+      exactPhrases: countItems(allExactPhrases).slice(0, 50)
+    },
+    posts: results
   };
 
-  const jsonPath = path.join(process.cwd(), 'download', `filtered_${timestamp}.json`);
-  await fs.writeFile(jsonPath, JSON.stringify(report, null, 2));
+  await fs.writeFile(filePath, JSON.stringify(exportData, null, 2));
 
-  const scriptPath = path.join(process.cwd(), 'scripts', 'generate_excel_report.py');
-  try {
-    await execAsync(`python3 "${scriptPath}" "${jsonPath}" "${filePath}"`);
-  } catch (error) {
-    console.error('Excel generation error:', error);
-    return NextResponse.json({
-      success: true,
-      filename: `filtered_${timestamp}.json`,
-      message: 'Excel generation failed, JSON exported instead'
-    });
-  }
-
-  return NextResponse.json({ success: true, filename });
+  return NextResponse.json({ 
+    success: true, 
+    filename,
+    downloadUrl: `/api/reddit?action=download&file=${filename}`
+  });
 }
 
 async function downloadReport(filename: string) {
@@ -435,12 +502,10 @@ async function downloadReport(filename: string) {
 
   try {
     const fileBuffer = await fs.readFile(filePath);
-    const isExcel = filename.endsWith('.xlsx');
+    const isJson = filename.endsWith('.json');
     return new NextResponse(fileBuffer, {
       headers: {
-        'Content-Type': isExcel 
-          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-          : 'application/json',
+        'Content-Type': isJson ? 'application/json' : 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });
@@ -455,7 +520,7 @@ async function listReports() {
   try {
     const files = await fs.readdir(downloadDir);
     const reports = files
-      .filter(f => f.endsWith('.xlsx') || f.endsWith('.json'))
+      .filter(f => f.endsWith('.json') || f.endsWith('.xlsx'))
       .map(f => ({
         filename: f,
         type: f.endsWith('.xlsx') ? 'excel' : 'json',
