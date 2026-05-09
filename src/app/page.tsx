@@ -349,12 +349,19 @@ function DashboardContent() {
             <div className="space-y-6">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="border-l-4 border-l-lime-500">
+                <Card 
+                  className="border-l-4 border-l-lime-500 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => {
+                    if (results.length > 0) {
+                      setActiveTab('search');
+                    }
+                  }}
+                >
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-slate-500 dark:text-slate-400">Total Insights</p>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{results.length || 124}</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{results.length || 0}</p>
                       </div>
                       <div className="h-12 w-12 bg-lime-100 dark:bg-lime-900/30 rounded-lg flex items-center justify-center">
                         <Activity className="h-6 w-6 text-lime-600 dark:text-lime-400" />
@@ -363,12 +370,19 @@ function DashboardContent() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-green-500">
+                <Card 
+                  className="border-l-4 border-l-green-500 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => {
+                    setBuyingSignalsOnly(true);
+                    setActiveTab('search');
+                    if (query) handleSearch();
+                  }}
+                >
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-slate-500 dark:text-slate-400">Buying Signals</p>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{results.filter(r => r.purchaseIntent === 'high').length || 38}</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{results.filter(r => r.purchaseIntent === 'high').length || 0}</p>
                       </div>
                       <div className="h-12 w-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                         <ShoppingCart className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -377,12 +391,18 @@ function DashboardContent() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-amber-500">
+                <Card 
+                  className="border-l-4 border-l-amber-500 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => {
+                    setSelectedCategories(['complaints', 'frustrations', 'urgent_problems']);
+                    setActiveTab('search');
+                  }}
+                >
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-slate-500 dark:text-slate-400">Pain Points</p>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{results.flatMap(r => r.painPoints || []).length || 67}</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{results.flatMap(r => r.painPoints || []).length || 0}</p>
                       </div>
                       <div className="h-12 w-12 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
                         <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
@@ -391,12 +411,15 @@ function DashboardContent() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-blue-500">
+                <Card 
+                  className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setActiveTab('industries')}
+                >
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-slate-500 dark:text-slate-400">Industries</p>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{industries.length || 12}</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{industries.length || 0}</p>
                       </div>
                       <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                         <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -442,70 +465,122 @@ function DashboardContent() {
                 </CardContent>
               </Card>
 
-              {/* Sentiment Overview */}
+              {/* Sentiment Overview - Real Data */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">Sentiment Distribution</CardTitle>
+                    <CardDescription>
+                      {results.length > 0 ? 'Click to filter by sentiment' : 'Run a search to see sentiment data'}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-lime-100 dark:bg-lime-900/30 rounded-lg flex items-center justify-center">
-                          <ThumbsUp className="h-5 w-5 text-lime-600 dark:text-lime-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">Positive</span>
-                            <span className="text-sm font-medium text-slate-900 dark:text-white">42%</span>
+                    {(() => {
+                      const total = results.length || 1;
+                      const positive = results.filter(r => r.sentiment === 'positive').length;
+                      const negative = results.filter(r => r.sentiment === 'negative').length;
+                      const neutral = results.filter(r => r.sentiment === 'neutral').length;
+                      const mixed = results.filter(r => r.sentiment === 'mixed').length;
+                      
+                      const positivePct = Math.round((positive / total) * 100) || 0;
+                      const negativePct = Math.round((negative / total) * 100) || 0;
+                      const neutralPct = Math.round((neutral / total) * 100) || 0;
+                      
+                      return (
+                        <div className="space-y-4">
+                          <div 
+                            className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors"
+                            onClick={() => {
+                              if (results.length > 0) {
+                                setSelectedSentiments(['positive']);
+                                setActiveTab('search');
+                              }
+                            }}
+                          >
+                            <div className="w-10 h-10 bg-lime-100 dark:bg-lime-900/30 rounded-lg flex items-center justify-center">
+                              <ThumbsUp className="h-5 w-5 text-lime-600 dark:text-lime-400" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-slate-600 dark:text-slate-400">Positive</span>
+                                <span className="text-sm font-medium text-slate-900 dark:text-white">{positivePct}% ({positive})</span>
+                              </div>
+                              <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div className="h-full bg-lime-500 rounded-full transition-all" style={{ width: `${positivePct}%` }} />
+                              </div>
+                            </div>
                           </div>
-                          <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-lime-500 rounded-full" style={{ width: '42%' }} />
+                          <div 
+                            className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors"
+                            onClick={() => {
+                              if (results.length > 0) {
+                                setSelectedSentiments(['negative']);
+                                setActiveTab('search');
+                              }
+                            }}
+                          >
+                            <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                              <ThumbsDown className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-slate-600 dark:text-slate-400">Negative</span>
+                                <span className="text-sm font-medium text-slate-900 dark:text-white">{negativePct}% ({negative})</span>
+                              </div>
+                              <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${negativePct}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                          <div 
+                            className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors"
+                            onClick={() => {
+                              if (results.length > 0) {
+                                setSelectedSentiments(['neutral']);
+                                setActiveTab('search');
+                              }
+                            }}
+                          >
+                            <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                              <MessageSquare className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-slate-600 dark:text-slate-400">Neutral</span>
+                                <span className="text-sm font-medium text-slate-900 dark:text-white">{neutralPct}% ({neutral})</span>
+                              </div>
+                              <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div className="h-full bg-gray-500 rounded-full transition-all" style={{ width: `${neutralPct}%` }} />
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                          <ThumbsDown className="h-5 w-5 text-red-600 dark:text-red-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">Negative</span>
-                            <span className="text-sm font-medium text-slate-900 dark:text-white">28%</span>
-                          </div>
-                          <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-red-500 rounded-full" style={{ width: '28%' }} />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                          <MessageSquare className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">Neutral</span>
-                            <span className="text-sm font-medium text-slate-900 dark:text-white">30%</span>
-                          </div>
-                          <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-gray-500 rounded-full" style={{ width: '30%' }} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">Top Insight Categories</CardTitle>
+                    <CardDescription>Click to search by category</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {patterns.slice(0, 5).map((pattern, index) => (
-                        <div key={pattern.category} className="flex items-center gap-3">
+                        <div 
+                          key={pattern.category} 
+                          className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors"
+                          onClick={() => {
+                            setSelectedCategories([pattern.category]);
+                            setActiveTab('search');
+                          }}
+                        >
                           <span className="text-sm font-medium text-slate-400 w-4">{index + 1}</span>
-                          <Badge variant="outline" className="flex-1 justify-start gap-2 py-1.5 border-lime-200 dark:border-lime-800">
+                          <Badge 
+                            variant="outline" 
+                            className="flex-1 justify-start gap-2 py-1.5 border-lime-200 dark:border-lime-800 hover:bg-lime-50 dark:hover:bg-lime-900/30"
+                          >
                             <span>{pattern.icon}</span>
                             <span className="text-lime-700 dark:text-lime-300">{pattern.label}</span>
                           </Badge>
